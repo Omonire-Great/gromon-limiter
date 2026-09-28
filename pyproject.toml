@@ -46,11 +46,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/CyberExpert-ZT/great-limiter"
-Documentation = "https://github.com/CyberExpert-ZT/great-limiter#readme"
-Source = "https://github.com/CyberExpert-ZT/great-limiter"
-Issues = "https://github.com/CyberExpert-ZT/great-limiter/issues"
-Changelog = "https://github.com/CyberExpert-ZT/great-limiter/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Omonire/great-limiter"
+Documentation = "https://github.com/Omonire/great-limiter#readme"
+Source = "https://github.com/Omonire/great-limiter"
+Issues = "https://github.com/Omonire/great-limiter/issues"
+Changelog = "https://github.com/Omonire/great-limiter/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["great_limiter*"]

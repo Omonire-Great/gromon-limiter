@@ -37,5 +37,5 @@ First release: V1, auth-endpoint rate limiting.
 - `Limiter` (general-purpose alias) and `GreatShield` (V3 stub) exported for
   forward compatibility. Neither fakes functionality.
 
-[Unreleased]: https://github.com/CyberExpert-ZT/great-limiter/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/CyberExpert-ZT/great-limiter/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Omonire/great-limiter/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Omonire/great-limiter/releases/tag/v0.1.0
