@@ -14,7 +14,7 @@ from __future__ import annotations
 import contextlib
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from great_limiter.errors import ConfigurationError, StorageError
 from great_limiter.storage.base import CounterState, Storage
@@ -136,10 +136,11 @@ class RedisStorage(Storage):
             # forwarded verbatim, because a production Redis connection usually
             # needs them and there is nothing useful to wrap.
             # redis-py 5.0 annotates from_url as returning None, which is simply
-            # wrong: it returns a configured client.
-            self._client = redis.Redis.from_url(  # type: ignore[assignment]
-                url, decode_responses=True, **client_kwargs
-            )
+            # wrong: it returns a configured client. Later versions corrected the
+            # stub, so a cast is used rather than a `type: ignore`: the ignore
+            # would become an error of its own (unused-ignore) on a newer redis.
+            from_url = cast("Any", redis.Redis.from_url)
+            self._client = cast("Redis", from_url(url, decode_responses=True, **client_kwargs))
             self._owns_client = True
         self._prefix = prefix.strip(":")
         self._clock = clock
@@ -268,8 +269,10 @@ class RedisStorage(Storage):
     def _delete_batch(self, keys: list[str]) -> int:
         # redis-py's stubs model the sync and async clients in one union, so the
         # return type needs narrowing even though the sync client is guaranteed
-        # here (this package never constructs an asyncio.Redis).
-        return int(self._client.delete(*keys))  # type: ignore[arg-type]
+        # here (this package never constructs an asyncio.Redis). Going through
+        # `Any` keeps this working across redis-py versions instead of relying
+        # on a `type: ignore` that goes stale as soon as the stubs are fixed.
+        return int(cast("Any", self._client.delete)(*keys))
 
     def close(self) -> None:
         # Only close a client this object created. A client handed in by the
@@ -278,5 +281,5 @@ class RedisStorage(Storage):
         if not self._owns_client:
             return
         with contextlib.suppress(Exception):
-            # redis-py does not annotate close().
-            self._client.close()  # type: ignore[no-untyped-call]
+            # redis-py does not annotate close() in every supported version.
+            cast("Any", self._client).close()
