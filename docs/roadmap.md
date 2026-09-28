@@ -5,7 +5,7 @@ independently tested; nothing waits for the milestone after it. Work proceeds in
 order, and a milestone is only "done" when its tests, documentation and security
 review are done.
 
-## V1 — Auth endpoint limiting (current)
+## V1 — Auth endpoint limiting (shipped as 0.1.0)
 
 **Goal:** protect login, password reset, MFA and signup endpoints well enough
 to deploy.
@@ -27,7 +27,7 @@ to deploy.
 Deliberately excluded: permanent lockout, CAPTCHA, geo rules, risk scoring,
 dashboards, hosted API.
 
-## V2 — General-purpose API limiter
+## V2 — General-purpose API limiter (current)
 
 **Goal:** rate limit any endpoint, not just authentication.
 
@@ -36,14 +36,19 @@ dashboards, hosted API.
 | `Limiter` as the documented public entry point | done (`Limiter.for_policy`, `policy_for`) |
 | Key builders: route, user, tenant, API key, arbitrary callables | done (`great_limiter.policies`) |
 | Per-route and per-blueprint policies declared as data | done (`Policy` / `Rule` data model) |
-| Weighted limits (cost per request) | done (`Rule.cost`, `fixed_cost`) |
-| Global (`scope="global"`) and weighted limits | partial (weights done, global scope already in V1 config) |
+| Weighted limits (cost per request) | done (`Rule.cost`, `fixed_cost`; atomic in both backends) |
+| Policy evaluation over the V1 engine | done (`PolicyEvaluator`, `PolicyVerdict`) |
+| Per-rule cooldowns and fail-open/fail-closed per policy | done |
+| Global (`scope="global"`) limits | partial (scope already in V1 config, no V2 sugar) |
 | `Retry-After`-aware client helpers | next |
 | Django and FastAPI adapters on the existing engine | next |
 | Response hooks (custom status, body, headers) | next |
 
-Design constraint: V2 reuses `LimiterCore` unchanged. `AuthLimiter` keeps working
-through inheritance, so no V1 application has to change.
+Design constraint: V2 reuses `LimiterCore`. `AuthLimiter` keeps working through
+inheritance, so no V1 application has to change. The engine gained two additive
+parameters for this milestone, `cost` on `check` and a public `clock`, plus a
+`storage_failed` flag on `Decision`. Every one of them defaults to the V1
+behaviour, so existing callers are unaffected.
 
 ## V3 — Great Shield service
 

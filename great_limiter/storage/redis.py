@@ -24,10 +24,11 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 __all__ = ["RedisStorage"]
 
-# INCR + conditional EXPIRE, and return the remaining TTL so the caller can
-# build Retry-After without a second round trip.
+# INCRBY + conditional EXPIRE, and return the remaining TTL so the caller can
+# build Retry-After without a second round trip. INCRBY rather than INCR because
+# a weighted operation has to charge several slots in this same atomic step.
 _INCREMENT_LUA = """
-local value = redis.call('INCR', KEYS[1])
+local value = redis.call('INCRBY', KEYS[1], ARGV[2])
 local ttl = redis.call('PTTL', KEYS[1])
 if ttl < 0 then
   redis.call('PEXPIRE', KEYS[1], ARGV[1])
@@ -50,7 +51,14 @@ return {value, ttl}
 # Returns {count, oldest_score} where count already includes the new member.
 _LOG_ADD_LUA = """
 redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', tonumber(ARGV[1]) - tonumber(ARGV[2]))
-redis.call('ZADD', KEYS[1], tonumber(ARGV[1]), ARGV[3])
+-- A weighted hit adds `amount` members sharing one score. They must be
+-- distinct: in a sorted set, two entries with the same score *and* member
+-- collapse into one, so reusing the member would silently charge less than the
+-- caller asked for.
+local score = tonumber(ARGV[1])
+for i = 1, tonumber(ARGV[5]) do
+  redis.call('ZADD', KEYS[1], score, ARGV[3] .. '#' .. i)
+end
 redis.call('PEXPIRE', KEYS[1], ARGV[4])
 local count = redis.call('ZCARD', KEYS[1])
 local oldest = redis.call('ZRANGE', KEYS[1], 0, 0, 'WITHSCORES')
@@ -172,10 +180,12 @@ class RedisStorage(Storage):
         if amount < 1:
             raise ValueError("amount must be >= 1")
         now = self._now()
-        # For amount > 1 the fixed-window expiry must cover the extra requests
-        # too; the common case is amount == 1.
-        ttl_ms = max(1, int(window_seconds * 1000) * amount)
-        value, ttl = self._run(self._increment, key, [ttl_ms])
+        # The counter is charged by the amount in the same script that sets the
+        # expiry, so a weighted hit cannot be seen by another caller as a
+        # partial charge. The expiry is only (re)set when the key is new, which
+        # keeps the window fixed rather than sliding with the traffic.
+        ttl_ms = max(1, int(window_seconds * 1000))
+        value, ttl = self._run(self._increment, key, [ttl_ms, amount])
         return CounterState(value=int(value), reset_at=now + (int(ttl) / 1000.0))
 
     def current(self, key: str) -> CounterState:
@@ -195,12 +205,20 @@ class RedisStorage(Storage):
     # ---------------------------------------------------------- sliding window
 
     def log_add(
-        self, key: str, *, member: str, timestamp: float, window_seconds: float
+        self, key: str, *, member: str, timestamp: float, window_seconds: float, amount: int = 1
     ) -> tuple[int, float | None]:
+        if amount < 1:
+            raise ValueError("amount must be >= 1")
         count, oldest = self._run(
             self._log_add,
             key,
-            [int(timestamp * 1000), int(window_seconds * 1000), member, int(window_seconds * 1000)],
+            [
+                int(timestamp * 1000),
+                int(window_seconds * 1000),
+                member,
+                int(window_seconds * 1000),
+                amount,
+            ],
         )
         return int(count), (float(oldest) / 1000.0 if oldest not in (None, "", b"") else None)
 

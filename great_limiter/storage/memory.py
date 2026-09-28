@@ -123,8 +123,10 @@ class MemoryStorage(Storage):
     # ---------------------------------------------------------- sliding window
 
     def log_add(
-        self, key: str, *, member: str, timestamp: float, window_seconds: float
+        self, key: str, *, member: str, timestamp: float, window_seconds: float, amount: int = 1
     ) -> tuple[int, float | None]:
+        if amount < 1:
+            raise ValueError("amount must be >= 1")
         with self._lock:
             entries = self._logs.get(key)
             if entries is None:
@@ -134,7 +136,10 @@ class MemoryStorage(Storage):
             index = bisect_left(entries, cutoff)
             if index:
                 del entries[:index]
-            entries.append(timestamp)
+            # A weighted hit occupies `amount` consecutive slots. They share a
+            # timestamp, so the log stays sorted and the memory backend can keep
+            # using bisect.
+            entries.extend([timestamp] * amount)
             self._evict_locked(self._now())
             return len(entries), entries[0]
 

@@ -18,6 +18,11 @@ from great_limiter.core import (
     build_headers,
     build_payload,
 )
+from great_limiter.engine import (
+    MAX_RULES_PER_POLICY,
+    PolicyEvaluator,
+    PolicyVerdict,
+)
 from great_limiter.errors import (
     ConfigurationError,
     GreatLimiterError,
@@ -50,6 +55,7 @@ if TYPE_CHECKING:  # pragma: no cover - only needed by type checkers
     from great_limiter.config import Settings
 
 __all__ = [
+    "MAX_RULES_PER_POLICY",
     "AuthLimiter",
     "ConfigurationError",
     "CounterState",
@@ -63,6 +69,8 @@ __all__ = [
     "LimiterCore",
     "MemoryStorage",
     "Policy",
+    "PolicyEvaluator",
+    "PolicyVerdict",
     "RateLimit",
     "RateLimitExceeded",
     "RedisStorage",

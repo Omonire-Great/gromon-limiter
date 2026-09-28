@@ -140,6 +140,35 @@ class KeyBuilder:
         )
         return (resolved,) if resolved else _fallback_buckets(self.fallback)
 
+    def materials_or_none(self, identity: Identity) -> tuple[tuple[str, ...], ...] | None:
+        """Like :meth:`materials`, but ``None`` when nothing resolved.
+
+        Callers that must treat an unresolvable identity as "this rule does not
+        apply" use this instead of catching the configuration error: a rule that
+        cannot be keyed is a routine outcome on an unauthenticated request, not
+        a misconfiguration.
+        """
+        if self.independent:
+            buckets = [
+                bucket
+                for name in self.components
+                if (value := _component_value(name, identity))
+                for bucket in ((f"{name}={value}",),)
+            ]
+            if buckets:
+                return tuple(buckets)
+        else:
+            resolved = tuple(
+                f"{name}={value}"
+                for name in self.components
+                if (value := _component_value(name, identity))
+            )
+            if resolved:
+                return (resolved,)
+        if self.fallback is None:
+            return None
+        return _fallback_buckets(self.fallback)
+
     def fingerprint(self, salt: str, identity: Identity) -> tuple[str, ...]:
         """Return the storage keys for this rule, one per bucket."""
         return tuple(fingerprint(salt, self.prefix, *parts) for parts in self.materials(identity))
@@ -262,9 +291,12 @@ class Rule:
             # bool is an int subclass; `cost=True` is a configuration mistake,
             # not a request that costs one unit.
             if not isinstance(given_cost, int) or isinstance(given_cost, bool):
-                raise ConfigurationError("Rule cost must be a non-negative int or a callable")
-            if given_cost < 0:
-                raise ConfigurationError("Rule cost must be >= 0")
+                raise ConfigurationError("Rule cost must be a positive int or a callable")
+            # Zero is rejected rather than allowed: a request that costs nothing
+            # is never counted, so it would be a way to bypass the rule entirely
+            # while still looking configured.
+            if given_cost < 1:
+                raise ConfigurationError("Rule cost must be >= 1")
         if self.cooldown_seconds is not None and self.cooldown_seconds < 0:
             raise ConfigurationError("Rule cooldown_seconds must be >= 0")
         if any(char in self.name for char in "\r\n"):
@@ -278,18 +310,21 @@ class Rule:
         return "+".join(self.key.components)
 
     def cost_for(self, subject: Any) -> int:
-        """Resolve the units this request consumes, defensively.
+        """Resolve the units this request consumes.
 
-        A user supplied cost function that raises or returns nonsense must not
-        take down the request path: the safest interpretation of an unknown cost
-        is the rule's own limit, which denies rather than silently allowing an
-        expensive operation for free.
+        A wrong *return value* is resolved defensively: the rule's own limit is
+        charged, which denies rather than letting an expensive operation through
+        for free.
+
+        A cost function that *raises* is deliberately not caught. A bug in the
+        caller's pricing code should surface as itself, not be laundered into a
+        429 that looks like ordinary rate limiting and hides the defect.
         """
         # The result of a user supplied cost function is `Any` as far as the
         # annotation goes, but it is checked as a plain object because a wrong
         # return type must not become a free pass.
         value: object = self.cost(subject) if callable(self.cost) else self.cost
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1:
             return self.limit.limit
         return value
 

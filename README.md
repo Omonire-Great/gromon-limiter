@@ -63,21 +63,14 @@ There is no way to permanently lock an account. A cooldown always expires.
 
 ## Install
 
-> **Not on PyPI yet.** 0.1.0 has not been published, so `pip install
-> great-limiter` will not find it. Install from source for now:
->
-> ```console
-> pip install .              # from a clone of this repository
-> pip install -e ".[dev]"    # editable, with the test/lint tooling
-> ```
-
-Once published:
-
 ```console
 pip install great-limiter            # core engine, no dependencies
 pip install great-limiter[flask]     # Flask integration
 pip install great-limiter[redis]     # Redis storage
 ```
+
+From a clone, `pip install -e ".[dev]"` gives you the editable install plus the
+test and lint tooling.
 
 Set a stable key salt whenever more than one process (or more than one restart)
 matters. Without it, memory storage generates a random one and warns; Redis

@@ -136,6 +136,48 @@ def test_log_add_prunes_and_reports_oldest(redis_backend: RedisStorage) -> None:
     assert oldest == pytest.approx(now + 61)
 
 
+def test_log_add_charges_a_weighted_amount(redis_backend: RedisStorage) -> None:
+    """A weighted hit must add several members, not one.
+
+    The log is a sorted set, so members sharing both score and member would
+    overwrite each other and the extra cost would silently vanish. This is the
+    regression guard for the member suffixing in the Lua script.
+    """
+    now = 1_000.0
+    count, oldest = redis_backend.log_add(
+        "weighted", member="a", timestamp=now, window_seconds=60, amount=3
+    )
+    assert count == 3
+    assert oldest == pytest.approx(now)
+
+    count, _oldest = redis_backend.log_add(
+        "weighted", member="b", timestamp=now, window_seconds=60, amount=3
+    )
+    # A second weighted hit accumulates on top of the first.
+    assert count == 6
+
+    # Pruning still works on a weighted log: after 61s the whole burst is gone.
+    count, _oldest = redis_backend.log_add(
+        "weighted", member="b", timestamp=now + 61, window_seconds=60, amount=3
+    )
+    assert count == 3
+
+
+def test_log_add_rejects_a_non_positive_amount(redis_backend: RedisStorage) -> None:
+    with pytest.raises(ValueError, match="amount must be >= 1"):
+        redis_backend.log_add(
+            "log", member="a", timestamp=1_000.0, window_seconds=60, amount=0
+        )
+
+
+def test_increment_charges_a_weighted_amount(redis_backend: RedisStorage) -> None:
+    state = redis_backend.increment("counter", amount=5, window_seconds=60)
+    assert state.value == 5
+    assert redis_backend.current("counter").value == 5
+    with pytest.raises(ValueError, match="amount must be >= 1"):
+        redis_backend.increment("counter", amount=0, window_seconds=60)
+
+
 def test_log_count(redis_backend: RedisStorage) -> None:
     now = 1_000.0
     for offset, member in ((0, "a"), (10, "b"), (20, "c")):
