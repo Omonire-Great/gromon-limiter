@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from great_limiter import (
+from g3_limiter import (
     ConfigurationError,
     Identity,
     LimiterCore,
     MemoryStorage,
     RateLimitExceeded,
 )
-from great_limiter.config import Settings
-from great_limiter.core import DEFAULT_COOLDOWN_MESSAGE, build_headers
-from great_limiter.engine import MAX_RULES_PER_POLICY, PolicyEvaluator
-from great_limiter.policies import (
+from g3_limiter.config import Settings
+from g3_limiter.core import DEFAULT_COOLDOWN_MESSAGE, build_headers
+from g3_limiter.engine import MAX_RULES_PER_POLICY, PolicyEvaluator
+from g3_limiter.policies import (
     KeyBuilder,
     Policy,
     Rule,
@@ -24,7 +24,7 @@ from great_limiter.policies import (
     by_user,
     fixed_cost,
 )
-from great_limiter.storage.base import CounterState, Storage
+from g3_limiter.storage.base import CounterState, Storage
 
 SALT = "engine-test-salt-long-enough"
 
@@ -332,7 +332,7 @@ class _BrokenStorage(Storage):
     name = "broken"
 
     def __init__(self) -> None:
-        from great_limiter.errors import StorageError
+        from g3_limiter.errors import StorageError
 
         self._error = StorageError("storage is down")
 
@@ -396,7 +396,7 @@ def test_fail_open_policy_allows_but_reports_the_failure() -> None:
 
 
 def test_fail_closed_policy_propagates_the_storage_error() -> None:
-    from great_limiter.errors import StorageError
+    from g3_limiter.errors import StorageError
 
     ev = _broken_evaluator(fail_open=False)
     policy = Policy(

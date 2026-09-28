@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from great_limiter.errors import InvalidLimitError
-from great_limiter.limits import RateLimit
+from g3_limiter.errors import InvalidLimitError
+from g3_limiter.limits import RateLimit
 
 
 @pytest.mark.parametrize(

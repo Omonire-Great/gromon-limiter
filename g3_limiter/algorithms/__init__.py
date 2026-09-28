@@ -27,9 +27,9 @@ import itertools
 import secrets
 from typing import ClassVar, Protocol
 
-from great_limiter.errors import ConfigurationError
-from great_limiter.limits import RateLimit
-from great_limiter.storage.base import Storage
+from g3_limiter.errors import ConfigurationError
+from g3_limiter.limits import RateLimit
+from g3_limiter.storage.base import Storage
 
 __all__ = [
     "ALGORITHMS",
@@ -41,7 +41,7 @@ __all__ = [
 ]
 
 #: Key namespace. Prefixed on every key so a shared Redis database stays legible.
-NAMESPACE = "great_limiter"
+NAMESPACE = "g3_limiter"
 
 
 class Algorithm(Protocol):

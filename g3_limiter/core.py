@@ -27,13 +27,13 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from great_limiter.algorithms import NAMESPACE as KEY_NAMESPACE
-from great_limiter.algorithms import get_algorithm, storage_key_for
-from great_limiter.config import Settings
-from great_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
-from great_limiter.identifiers import Identity, TrustedProxies, fingerprint
-from great_limiter.limits import RateLimit
-from great_limiter.storage.base import Storage
+from g3_limiter.algorithms import NAMESPACE as KEY_NAMESPACE
+from g3_limiter.algorithms import get_algorithm, storage_key_for
+from g3_limiter.config import Settings
+from g3_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
+from g3_limiter.identifiers import Identity, TrustedProxies, fingerprint
+from g3_limiter.limits import RateLimit
+from g3_limiter.storage.base import Storage
 
 __all__ = [
     "Decision",
@@ -152,7 +152,7 @@ class LimiterCore:
     settings:
         Validated configuration (namespace, identifiers, cooldowns, ...).
     storage:
-        A :class:`~great_limiter.storage.base.Storage` backend.
+        A :class:`~g3_limiter.storage.base.Storage` backend.
     clock:
         Time source, injectable so tests can advance time deterministically
         instead of sleeping.

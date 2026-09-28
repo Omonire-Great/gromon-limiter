@@ -34,7 +34,7 @@ dashboards, hosted API.
 | Item | Status |
 | --- | --- |
 | `Limiter` as the documented public entry point | done (`Limiter.for_policy`, `policy_for`) |
-| Key builders: route, user, tenant, API key, arbitrary callables | done (`great_limiter.policies`) |
+| Key builders: route, user, tenant, API key, arbitrary callables | done (`g3_limiter.policies`) |
 | Per-route and per-blueprint policies declared as data | done (`Policy` / `Rule` data model) |
 | Weighted limits (cost per request) | done (`Rule.cost`, `fixed_cost`; atomic in both backends) |
 | Policy evaluation over the V1 engine | done (`PolicyEvaluator`, `PolicyVerdict`) |
@@ -50,14 +50,14 @@ parameters for this milestone, `cost` on `check` and a public `clock`, plus a
 `storage_failed` flag on `Decision`. Every one of them defaults to the V1
 behaviour, so existing callers are unaffected.
 
-## V3 — Great Shield service
+## V3 — G3 backend service
 
 **Goal:** one policy, enforced everywhere, including by services that are not
 Python.
 
 | Item | Status |
 | --- | --- |
-| `GreatShield` client replacing the `NotImplementedError` stub | planned |
+| `G3Client` client replacing the `NotImplementedError` stub | planned |
 | Central rule store with local caching and fail-safe defaults | planned |
 | Signed configuration so a compromised client cannot raise its own limit | planned |
 | Sync/async Python clients, TypeScript client | planned |

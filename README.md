@@ -1,20 +1,20 @@
-# great-limiter
+# g3-limiter
 
 Rate limiting for authentication endpoints, built for the
-[Great Shield](https://github.com/omonire) project.
+[G3](https://github.com/omonire) project.
 
-[![CI](https://github.com/Omonire/great-limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/Omonire/great-limiter/actions/workflows/ci.yml)
+[![CI](https://github.com/Omonire/g3-limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/Omonire/g3-limiter/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`great-limiter` answers one question on every request: *has this caller already
+`g3-limiter` answers one question on every request: *has this caller already
 spent too many attempts, and if so, when may they try again?* It is deliberately
 small, framework-agnostic at the core, and explicit about the security
 decisions it makes.
 
 ```python
 from flask import Flask, jsonify, request
-from great_limiter import AuthLimiter
+from g3_limiter import AuthLimiter
 
 app = Flask(__name__)
 limiter = AuthLimiter(
@@ -64,9 +64,9 @@ There is no way to permanently lock an account. A cooldown always expires.
 ## Install
 
 ```console
-pip install great-limiter            # core engine, no dependencies
-pip install great-limiter[flask]     # Flask integration
-pip install great-limiter[redis]     # Redis storage
+pip install g3-limiter            # core engine, no dependencies
+pip install g3-limiter[flask]     # Flask integration
+pip install g3-limiter[redis]     # Redis storage
 ```
 
 From a clone, `pip install -e ".[dev]"` gives you the editable install plus the
@@ -79,7 +79,7 @@ silently defeat every limit.
 
 ```console
 $ python -c "import secrets; print(secrets.token_urlsafe(32))"
-export GREAT_LIMITER_KEY_SALT="the-value-you-generated"
+export G3_LIMITER_KEY_SALT="the-value-you-generated"
 ```
 
 ## Using it
@@ -87,7 +87,7 @@ export GREAT_LIMITER_KEY_SALT="the-value-you-generated"
 ### Flask (V1)
 
 ```python
-from great_limiter import AuthLimiter
+from g3_limiter import AuthLimiter
 
 # Immediately, or later with AuthLimiter(limit=...).init_app(app).
 limiter = AuthLimiter(app, limit="10/minute", storage="redis")
@@ -107,7 +107,7 @@ registers the wrapper as the view.
 To render the error yourself instead of returning the built-in 429:
 
 ```python
-from great_limiter import RateLimitExceeded
+from g3_limiter import RateLimitExceeded
 
 @app.post("/login")
 @limiter.limit("5/minute", raise_on_limit=True)
@@ -122,8 +122,8 @@ After a *successful* login, clear the caller's counters so their own typos (or
 someone else on the same NAT) do not accumulate:
 
 ```python
-from great_limiter import Identity
-from great_limiter.flask import current_limiter
+from g3_limiter import Identity
+from g3_limiter.flask import current_limiter
 
 limiter.reset(Identity(ip=..., account=...), path="/login", method="POST")
 ```
@@ -133,9 +133,9 @@ limiter.reset(Identity(ip=..., account=...), path="/login", method="POST")
 The engine has no web-framework dependency, so any stack can use it:
 
 ```python
-from great_limiter import LimiterCore, MemoryStorage
-from great_limiter.config import Settings, resolve_key_salt
-from great_limiter.identifiers import Identity
+from g3_limiter import LimiterCore, MemoryStorage
+from g3_limiter.config import Settings, resolve_key_salt
+from g3_limiter.identifiers import Identity
 
 core = LimiterCore(
     Settings(
@@ -225,7 +225,7 @@ The design decisions and their reasoning are in
 pip install -e ".[dev]"
 python -m pytest -q          # full suite
 python -m pytest -q -m redis # storage tests (live Redis if REDIS_URL is set)
-python -m ruff check great_limiter tests
+python -m ruff check g3_limiter tests
 python -m mypy
 ```
 
@@ -240,12 +240,12 @@ Deliberately incremental; each milestone is usable on its own.
 | --- | --- | --- |
 | V1 | Auth endpoint limiting, IP + account, cooldowns, memory/Redis, Flask | **done** |
 | V2 | General-purpose API limiter (`Limiter`), key builders, per-route policies | next |
-| V3 | Great Shield service client: shared policy across services | planned |
+| V3 | G3 backend service client: shared policy across services | planned |
 | V4 | Control plane: dashboard, metrics, rule management | planned |
 | V5 | Multi-region edge enforcement, SDKs, billing | planned |
 
-`Limiter` and `GreatShield` are exported for forward compatibility. `Limiter` is
-currently a thin general-purpose alias of `AuthLimiter`; `GreatShield` raises
+`Limiter` and `G3Client` are exported for forward compatibility. `Limiter` is
+currently a thin general-purpose alias of `AuthLimiter`; `G3Client` raises
 `NotImplementedError` until V3. Neither pretends to work.
 
 ## Licence

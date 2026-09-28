@@ -22,8 +22,8 @@ from typing import Any
 import pytest
 import redis
 
-from great_limiter.errors import ConfigurationError, StorageError
-from great_limiter.storage.redis import RedisStorage
+from g3_limiter.errors import ConfigurationError, StorageError
+from g3_limiter.storage.redis import RedisStorage
 
 pytestmark = pytest.mark.redis
 
@@ -44,7 +44,7 @@ def _live_redis_client() -> Any:
             return client
         except Exception:
             pass
-    if os.environ.get("GREAT_LIMITER_FAKE_REDIS", "1") == "0":
+    if os.environ.get("G3_LIMITER_FAKE_REDIS", "1") == "0":
         return None
     try:
         import fakeredis
@@ -61,7 +61,7 @@ def redis_backend() -> Iterator[RedisStorage]:
             "no Redis available: set REDIS_URL, or `pip install fakeredis` for "
             "script-level coverage without a server"
         )
-    prefix = f"great_limiter_test:{uuid.uuid4().hex[:8]}"
+    prefix = f"g3_limiter_test:{uuid.uuid4().hex[:8]}"
     backend = RedisStorage(client=client, prefix=prefix)
     yield backend
     backend.clear_prefix("")

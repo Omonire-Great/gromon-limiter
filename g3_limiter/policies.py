@@ -26,14 +26,14 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from great_limiter.errors import ConfigurationError
-from great_limiter.identifiers import (
+from g3_limiter.errors import ConfigurationError
+from g3_limiter.identifiers import (
     Identity,
     fingerprint,
     normalize_account,
     normalize_ip,
 )
-from great_limiter.limits import RateLimit
+from g3_limiter.limits import RateLimit
 
 __all__ = [
     "KeyBuilder",

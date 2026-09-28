@@ -1,12 +1,12 @@
-"""Flask integration for :mod:`great_limiter`.
+"""Flask integration for :mod:`g3_limiter`.
 
 This is the only module in the package that imports Flask. It does three things
-and delegates everything else to :class:`~great_limiter.core.LimiterCore`:
+and delegates everything else to :class:`~g3_limiter.core.LimiterCore`:
 
-* build a validated :class:`~great_limiter.config.Settings` and attach the
+* build a validated :class:`~g3_limiter.config.Settings` and attach the
   engine to ``app.extensions``;
 * resolve the request identity from Flask's cached request object;
-* convert a blocking :class:`~great_limiter.core.Decision` into a 429 JSON
+* convert a blocking :class:`~g3_limiter.core.Decision` into a 429 JSON
   response and publish rate limit headers on allowed responses.
 
 The identity is read through ``request.get_json(silent=True)`` /
@@ -21,26 +21,26 @@ import logging
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from great_limiter.config import (
+from g3_limiter.config import (
     ALGORITHM_NAMES,
     DEFAULT_ACCOUNT_FIELDS,
     Settings,
     normalise_proxies,
     resolve_key_salt,
 )
-from great_limiter.core import Decision, LimiterCore, build_body, build_headers
-from great_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
-from great_limiter.identifiers import Identity, client_ip, normalize_account
-from great_limiter.limits import RateLimit
-from great_limiter.storage import build_storage
-from great_limiter.storage.base import Storage
+from g3_limiter.core import Decision, LimiterCore, build_body, build_headers
+from g3_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
+from g3_limiter.identifiers import Identity, client_ip, normalize_account
+from g3_limiter.limits import RateLimit
+from g3_limiter.storage import build_storage
+from g3_limiter.storage.base import Storage
 
 try:  # pragma: no cover - exercised implicitly by every Flask test
     from flask import current_app, g, has_request_context, request
 except ImportError as exc:  # pragma: no cover - depends on environment
     raise ImportError(
         "Flask is required for the Flask integration; install it with "
-        "`pip install great-limiter[flask]`"
+        "`pip install g3-limiter[flask]`"
     ) from exc
 
 __all__ = [
@@ -50,16 +50,16 @@ __all__ = [
     "resolve_limiter",
 ]
 
-logger = logging.getLogger("great_limiter")
+logger = logging.getLogger("g3_limiter")
 
 #: Key under which the engine is stored in ``app.extensions``.
-EXTENSION_KEY = "great_limiter"
+EXTENSION_KEY = "g3_limiter"
 
 #: Where the decorator stashes the decision so ``after_request`` can publish it.
-_DECISION_ATTR = "_great_limiter_decision"
+_DECISION_ATTR = "_g3_limiter_decision"
 
 #: Where the decorator stashes the Flask config on first use, for introspection.
-_ROUTE_ATTR = "_great_limiter_limit"
+_ROUTE_ATTR = "_g3_limiter_limit"
 
 
 def _limiter_from(app: Any) -> Any:
@@ -71,7 +71,7 @@ def resolve_limiter(app: Any) -> Any:
     limiter = _limiter_from(app)
     if limiter is None:
         raise ConfigurationError(
-            "great_limiter is not initialised on this app; call AuthLimiter(app) "
+            "g3_limiter is not initialised on this app; call AuthLimiter(app) "
             "or limiter.init_app(app) before using the decorator"
         )
     return limiter
@@ -90,7 +90,7 @@ def build_identity(
     trusted_proxies: Any = None,
     headers: Any = None,
 ) -> Identity:
-    """Resolve the :class:`~great_limiter.identifiers.Identity` of this request.
+    """Resolve the :class:`~g3_limiter.identifiers.Identity` of this request.
 
     ``headers`` defaults to ``request.headers``. It is a parameter so tests (and
     a future non-Flask adapter) can supply a plain mapping.
@@ -205,7 +205,7 @@ def init_auth_limiter(
     """Build the engine and attach it to ``app``.
 
     Every knob is explicit; nothing is read from a global. The first argument is
-    the :class:`~great_limiter.AuthLimiter` instance being initialised, so
+    the :class:`~g3_limiter.AuthLimiter` instance being initialised, so
     ``AuthLimiter(app)`` and ``AuthLimiter().init_app(app)`` behave identically.
     """
     if EXTENSION_KEY in app.extensions:
@@ -213,7 +213,7 @@ def init_auth_limiter(
         if existing is limiter:
             return app
         raise ConfigurationError(
-            "great_limiter is already initialised on this app. Constructing two "
+            "g3_limiter is already initialised on this app. Constructing two "
             "limiters would count every request twice; reuse the existing one."
         )
 
@@ -309,7 +309,7 @@ def evaluate(
     except StorageError:
         if not settings.fail_open:
             logger.exception(
-                "great_limiter: storage unavailable, failing closed (namespace=%s)",
+                "g3_limiter: storage unavailable, failing closed (namespace=%s)",
                 settings.namespace,
             )
             decision = Decision(
@@ -322,7 +322,7 @@ def evaluate(
             )
         else:
             logger.warning(
-                "great_limiter: storage unavailable, allowing request "
+                "g3_limiter: storage unavailable, allowing request "
                 "(fail_open=True, namespace=%s)",
                 settings.namespace,
             )

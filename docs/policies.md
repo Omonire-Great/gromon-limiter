@@ -11,7 +11,7 @@ the clock needed to evaluate rules on the same time source.
 ## Policy and rule
 
 ```python
-from great_limiter import Limiter, Policy, Rule, by_ip, by_user, fixed_cost
+from g3_limiter import Limiter, Policy, Rule, by_ip, by_user, fixed_cost
 
 policy = Policy(
     name="admin",
@@ -21,7 +21,7 @@ policy = Policy(
     ),
 )
 
-limiter = Limiter.for_policy(policy, key_salt=os.environ["GREAT_LIMITER_KEY_SALT"])
+limiter = Limiter.for_policy(policy, key_salt=os.environ["G3_LIMITER_KEY_SALT"])
 ```
 
 A request is allowed only when **every** rule allows it. That is what makes V1's
@@ -70,7 +70,7 @@ fairness: a noisy tenant cannot spend another tenant's allowance.
 narrow engine view per rule.
 
 ```python
-from great_limiter.engine import PolicyEvaluator
+from g3_limiter.engine import PolicyEvaluator
 
 evaluator = PolicyEvaluator(limiter.core)
 verdict = evaluator.check(policy, identity, path="/admin/refunds", method="POST")

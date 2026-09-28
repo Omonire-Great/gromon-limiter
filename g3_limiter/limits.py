@@ -12,7 +12,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from great_limiter.errors import InvalidLimitError
+from g3_limiter.errors import InvalidLimitError
 
 __all__ = ["RateLimit"]
 

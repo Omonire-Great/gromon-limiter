@@ -6,7 +6,7 @@ the guarantee can be verified rather than trusted.
 
 ## Threat model
 
-`great-limiter` defends authentication endpoints (login, password reset, MFA
+`g3-limiter` defends authentication endpoints (login, password reset, MFA
 codes, signup) against:
 
 | Attack | Mitigation |
@@ -30,7 +30,7 @@ attack; it does not end it.
 unconditionally, one extra header would grant an unlimited supply of identities
 and defeat every IP-based limit.
 
-`client_ip()` (see `great_limiter/identifiers.py`) therefore:
+`client_ip()` (see `g3_limiter/identifiers.py`) therefore:
 
 1. takes the socket peer (`request.remote_addr`) as the only value the server
    observed itself;
@@ -58,7 +58,7 @@ An email address or IP address in a Redis key is a disclosure waiting to happen:
 a snapshot outlives the incident review that justified it.
 
 `LimiterCore.rule_key` normalises the identity material, joins it with a unit
-separator, and takes a truncated HMAC-SHA256 keyed by `GREAT_LIMITER_KEY_SALT`:
+separator, and takes a truncated HMAC-SHA256 keyed by `G3_LIMITER_KEY_SALT`:
 
 ```python
 fingerprint(salt, "default:account", "account=victim@example.com")
@@ -81,7 +81,7 @@ one-wayness, material cap), `test_core.py::test_account_is_case_insensitive`.
 
 ### The salt
 
-`GREAT_LIMITER_KEY_SALT` is a secret. It is not logged, and it is required (at
+`G3_LIMITER_KEY_SALT` is a secret. It is not logged, and it is required (at
 least 16 characters) for shared storage:
 
 - **Memory storage** with no salt generates a random one and logs a warning.
@@ -104,7 +104,7 @@ it. Reading the raw WSGI stream would leave the view with an empty form — a
 subtle, production-only bug where login starts failing with "missing password"
 under load.
 
-`great_limiter/flask.py` uses `request.get_json(silent=True)`, `request.form` and
+`g3_limiter/flask.py` uses `request.get_json(silent=True)`, `request.form` and
 `request.args`, all of which Werkzeug caches. Order is body → form → query: a
 query parameter is more likely to be an ambient or shared value, so a real body
 field wins.
@@ -117,7 +117,7 @@ limited by IP alone and the view still sees the original body.
 
 ## 4. Nothing sensitive is logged
 
-The package logs to the `great_limiter` logger, and only ever operational
+The package logs to the `g3_limiter` logger, and only ever operational
 metadata: the namespace, the rule name, whether a decision was fail-open or
 fail-closed. No identifier values, no account names, no IPs, no credentials, no
 request bodies, no headers.
@@ -217,7 +217,7 @@ first login attempt has failed at the worst possible moment.
 
 ## Deployment checklist
 
-- [ ] `GREAT_LIMITER_KEY_SALT` set from a secret manager, identical on every
+- [ ] `G3_LIMITER_KEY_SALT` set from a secret manager, identical on every
       instance, at least 16 characters.
 - [ ] `storage="redis"` whenever more than one worker or instance serves the
       endpoint.
@@ -228,5 +228,5 @@ first login attempt has failed at the worst possible moment.
 - [ ] `fail_open` chosen deliberately per endpoint; left `False` for auth.
 - [ ] `limiter.reset(...)` called after successful authentication.
 - [ ] Rate limit headers treated as advisory by clients, `Retry-After` obeyed.
-- [ ] Metrics on the `great_limiter` logger, alerting on 429 spikes and on
+- [ ] Metrics on the `g3_limiter` logger, alerting on 429 spikes and on
       `rule="storage"` responses.

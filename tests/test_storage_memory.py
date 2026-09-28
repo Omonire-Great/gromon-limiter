@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from great_limiter.storage.memory import MemoryStorage
+from g3_limiter.storage.memory import MemoryStorage
 from tests.conftest import FakeClock
 
 

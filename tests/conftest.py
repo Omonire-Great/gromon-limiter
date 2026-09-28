@@ -13,10 +13,10 @@ from collections.abc import Callable, Iterator
 import pytest
 from flask import Flask
 
-from great_limiter import AuthLimiter
-from great_limiter.config import Settings, resolve_key_salt
-from great_limiter.core import LimiterCore
-from great_limiter.storage.memory import MemoryStorage
+from g3_limiter import AuthLimiter
+from g3_limiter.config import Settings, resolve_key_salt
+from g3_limiter.core import LimiterCore
+from g3_limiter.storage.memory import MemoryStorage
 
 TEST_SALT = "test-salt-do-not-use-in-production"
 
@@ -60,7 +60,7 @@ def make_settings(clock: FakeClock) -> Callable[..., Settings]:
             if alias in overrides:
                 overrides[target] = overrides.pop(alias)
 
-        from great_limiter.limits import RateLimit
+        from g3_limiter.limits import RateLimit
 
         if isinstance(overrides.get("default_limit"), str):
             overrides["default_limit"] = RateLimit.parse(overrides["default_limit"])  # type: ignore[arg-type]

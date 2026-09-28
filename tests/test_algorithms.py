@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from great_limiter.algorithms import (
+from g3_limiter.algorithms import (
     ALGORITHMS,
     FixedWindow,
     SlidingWindow,
     get_algorithm,
     storage_key_for,
 )
-from great_limiter.errors import ConfigurationError
-from great_limiter.limits import RateLimit
-from great_limiter.storage.memory import MemoryStorage
+from g3_limiter.errors import ConfigurationError
+from g3_limiter.limits import RateLimit
+from g3_limiter.storage.memory import MemoryStorage
 from tests.conftest import FakeClock
 
 
@@ -40,7 +40,7 @@ def test_get_algorithm_rejects_unknown_name() -> None:
 def test_storage_key_is_namespaced_and_distinct_per_algorithm() -> None:
     fixed = storage_key_for("auth", "fixed_window", "POST /login", "abc")
     sliding = storage_key_for("auth", "sliding_window", "POST /login", "abc")
-    assert fixed == "great_limiter:auth:fixed_window:POST /login:abc"
+    assert fixed == "g3_limiter:auth:fixed_window:POST /login:abc"
     assert fixed != sliding
 
 

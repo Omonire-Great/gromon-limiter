@@ -6,11 +6,11 @@ from collections.abc import Callable
 
 import pytest
 
-from great_limiter.config import Settings
-from great_limiter.core import LimiterCore, build_body, build_headers, build_payload
-from great_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
-from great_limiter.identifiers import Identity
-from great_limiter.storage.memory import MemoryStorage
+from g3_limiter.config import Settings
+from g3_limiter.core import LimiterCore, build_body, build_headers, build_payload
+from g3_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
+from g3_limiter.identifiers import Identity
+from g3_limiter.storage.memory import MemoryStorage
 from tests.conftest import TEST_SALT, FakeClock
 
 
@@ -312,7 +312,7 @@ def test_distinct_accounts_get_distinct_buckets(make_core: Callable[..., Limiter
 
 def test_account_is_case_insensitive(make_core: Callable[..., LimiterCore]) -> None:
     core = make_core(default_limit="1/minute", identifier=("account",), account_limit_multiplier=1)
-    from great_limiter.identifiers import normalize_account
+    from g3_limiter.identifiers import normalize_account
 
     core.check(
         Identity(ip="1.1.1.1", account=normalize_account("A@X.com")),
@@ -499,7 +499,7 @@ def test_extra_identifiers_must_be_declared() -> None:
 
 
 def test_redis_requires_explicit_stable_salt(monkeypatch: pytest.MonkeyPatch) -> None:
-    from great_limiter.config import SALT_ENV_VAR, resolve_key_salt
+    from g3_limiter.config import SALT_ENV_VAR, resolve_key_salt
 
     monkeypatch.delenv(SALT_ENV_VAR, raising=False)
     with pytest.raises(ConfigurationError):
@@ -510,7 +510,7 @@ def test_redis_requires_explicit_stable_salt(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_short_salt_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
-    from great_limiter.config import resolve_key_salt
+    from g3_limiter.config import resolve_key_salt
 
     with pytest.raises(ConfigurationError):
         resolve_key_salt("tooshort", storage_name="memory")
@@ -519,10 +519,10 @@ def test_short_salt_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_memory_storage_gets_a_ephemeral_salt_with_warning(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from great_limiter.config import SALT_ENV_VAR, resolve_key_salt
+    from g3_limiter.config import SALT_ENV_VAR, resolve_key_salt
 
     monkeypatch.delenv(SALT_ENV_VAR, raising=False)
-    with caplog.at_level("WARNING", logger="great_limiter"):
+    with caplog.at_level("WARNING", logger="g3_limiter"):
         salt = resolve_key_salt(None, storage_name="memory")
     assert len(salt) >= 16
     assert any("key salt" in record.message for record in caplog.records)
