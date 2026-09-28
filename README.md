@@ -1,9 +1,9 @@
 # great-limiter
 
 Rate limiting for authentication endpoints, built for the
-[Great Shield](https://github.com/CyberExpert-ZT) project.
+[Great Shield](https://github.com/omonire) project.
 
-[![CI](https://github.com/CyberExpert-ZT/great-limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/CyberExpert-ZT/great-limiter/actions/workflows/ci.yml)
+[![CI](https://github.com/Omonire/great-limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/Omonire/great-limiter/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
