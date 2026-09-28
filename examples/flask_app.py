@@ -2,7 +2,7 @@
 
 Run it directly::
 
-    export GREAT_LIMITER_KEY_SALT="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+    export G3_LIMITER_KEY_SALT="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
     python examples/flask_app.py
 
 Then hammer the endpoint::
@@ -26,13 +26,13 @@ import os
 
 from flask import Flask, jsonify, request
 
-from great_limiter import AuthLimiter, RateLimitExceeded
-from great_limiter.flask import current_limiter
+from g3_limiter import AuthLimiter, RateLimitExceeded
+from g3_limiter.flask import current_limiter
 
 # Change this: it decides how identifiers are fingerprinted, so counters written
 # with one salt cannot be read with another.
 os.environ.setdefault(
-    "GREAT_LIMITER_KEY_SALT", "example-only-salt-change-me-in-production"
+    "G3_LIMITER_KEY_SALT", "example-only-salt-change-me-in-production"
 )
 
 app = Flask(__name__)
@@ -85,7 +85,7 @@ def sms_code() -> tuple[dict[str, object], int]:
 @app.get("/me")
 def me() -> dict[str, object]:
     """The current decision is available for logging, never for raw identifiers."""
-    from great_limiter.flask import current_decision
+    from g3_limiter.flask import current_decision
 
     decision = current_decision()
     return jsonify(

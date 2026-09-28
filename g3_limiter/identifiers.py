@@ -36,7 +36,7 @@ __all__ = [
 MAX_ACCOUNT_LENGTH = 256
 
 #: Environment variable consulted when no salt is passed explicitly.
-SALT_ENV_VAR = "GREAT_LIMITER_KEY_SALT"
+SALT_ENV_VAR = "G3_LIMITER_KEY_SALT"
 
 #: Unit separator; cannot occur in the fingerprint input, so different
 #: combinations of parts can never collide by concatenation.

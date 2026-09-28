@@ -1,8 +1,11 @@
 name: CI
 
 on:
+  # Feature branches are built too, not just main. Otherwise a branch such as
+  # feature/v2 gets no run at all until a PR exists, so a broken push is
+  # indistinguishable from a good one.
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
   workflow_dispatch:
 
@@ -36,10 +39,10 @@ jobs:
       # Redis tests fall back to fakeredis, which runs the real Lua scripts
       # in-process via lupa, so the Redis code path is covered without a server.
       - name: Test
-        run: python -m pytest -q -ra --cov=great_limiter --cov-report=term-missing
+        run: python -m pytest -q -ra --cov=g3_limiter --cov-report=term-missing
 
       - name: Lint
-        run: python -m ruff check great_limiter tests examples
+        run: python -m ruff check g3_limiter tests examples
 
       - name: Types
         run: python -m mypy
@@ -73,8 +76,17 @@ jobs:
           pip install dist/*.whl
           cd "${{ runner.temp }}"
           python - <<'PY'
-          from great_limiter import AuthLimiter, Identity, LimiterCore, MemoryStorage, RateLimit
-          from great_limiter.config import Settings
+          from g3_limiter import (
+              Identity,
+              LimiterCore,
+              MemoryStorage,
+              Policy,
+              PolicyEvaluator,
+              RateLimit,
+              Rule,
+              by_ip,
+          )
+          from g3_limiter.config import Settings
 
           assert RateLimit.parse("100/5 minutes").window == 300
 
@@ -85,5 +97,19 @@ jobs:
           identity = Identity(ip="1.2.3.4")
           assert core.check(identity, path="/login", method="POST").allowed
           assert not core.check(identity, path="/login", method="POST").allowed
+
+          # V2: a policy has to be exported, constructible and enforceable from
+          # an installed wheel, not just importable from the source tree.
+          policy = Policy(
+              name="smoke",
+              rules=(Rule(key=by_ip(), limit="2/minute", name="ip"),),
+          )
+          evaluator = PolicyEvaluator(core)
+          assert evaluator.check(policy, identity, path="/api").allowed
+          assert evaluator.check(policy, identity, path="/api").allowed
+          verdict = evaluator.check(policy, identity, path="/api")
+          assert not verdict.allowed
+          assert verdict.denied_by() == "ip"
+
           print("wheel smoke test passed")
           PY

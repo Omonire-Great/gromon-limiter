@@ -12,11 +12,11 @@ import os
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 
-from great_limiter.errors import ConfigurationError
-from great_limiter.identifiers import SALT_ENV_VAR, TrustedProxies, new_salt
-from great_limiter.limits import RateLimit
+from g3_limiter.errors import ConfigurationError
+from g3_limiter.identifiers import SALT_ENV_VAR, TrustedProxies, new_salt
+from g3_limiter.limits import RateLimit
 
-#: Algorithm names are the keys of the registry in ``great_limiter.algorithms``.
+#: Algorithm names are the keys of the registry in ``g3_limiter.algorithms``.
 #: The list is duplicated here (instead of importing the registry) to keep
 #: configuration validation free of import cycles.
 ALGORITHM_NAMES: frozenset[str] = frozenset({"fixed_window", "sliding_window"})
@@ -31,7 +31,7 @@ __all__ = [
     "resolve_key_salt",
 ]
 
-logger = logging.getLogger("great_limiter")
+logger = logging.getLogger("g3_limiter")
 
 #: Request fields inspected, in order, when looking for an account identifier.
 DEFAULT_ACCOUNT_FIELDS: tuple[str, ...] = (
@@ -46,7 +46,7 @@ DEFAULT_ACCOUNT_FIELDS: tuple[str, ...] = (
     "cpf",
 )
 
-#: Identifier names with built-in meaning on :class:`~great_limiter.identifiers.Identity`.
+#: Identifier names with built-in meaning on :class:`~g3_limiter.identifiers.Identity`.
 #: Any other name is looked up in ``Identity.extras`` and simply yields no rule
 #: material when the application did not supply it.
 KNOWN_IDENTIFIERS: frozenset[str] = frozenset({"ip", "account"})
@@ -65,7 +65,7 @@ DEFAULT_LIMIT = RateLimit(limit=10, window_seconds=60.0, raw="10/minute")
 def resolve_key_salt(explicit: str | None, *, storage_name: str) -> str:
     """Resolve the HMAC salt used to fingerprint identifiers.
 
-    Precedence: explicit argument, then the ``GREAT_LIMITER_KEY_SALT``
+    Precedence: explicit argument, then the ``G3_LIMITER_KEY_SALT``
     environment variable, then a fresh random salt.
 
     A random fallback is only acceptable for single-process, in-memory
@@ -89,7 +89,7 @@ def resolve_key_salt(explicit: str | None, *, storage_name: str) -> str:
         )
     salt = new_salt()
     logger.warning(
-        "great_limiter: no key salt configured, generated an ephemeral one. "
+        "g3_limiter: no key salt configured, generated an ephemeral one. "
         "Counters reset on restart and are not shared. Set %s for stable behaviour.",
         SALT_ENV_VAR,
     )

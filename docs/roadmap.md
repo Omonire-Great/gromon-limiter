@@ -5,7 +5,7 @@ independently tested; nothing waits for the milestone after it. Work proceeds in
 order, and a milestone is only "done" when its tests, documentation and security
 review are done.
 
-## V1 — Auth endpoint limiting (current)
+## V1 — Auth endpoint limiting (shipped as 0.1.0)
 
 **Goal:** protect login, password reset, MFA and signup endpoints well enough
 to deploy.
@@ -27,31 +27,37 @@ to deploy.
 Deliberately excluded: permanent lockout, CAPTCHA, geo rules, risk scoring,
 dashboards, hosted API.
 
-## V2 — General-purpose API limiter
+## V2 — General-purpose API limiter (current)
 
 **Goal:** rate limit any endpoint, not just authentication.
 
 | Item | Status |
 | --- | --- |
-| `Limiter` as the documented public entry point | scaffold only (currently an `AuthLimiter` subclass) |
-| Key builders: route, user, tenant, API key, arbitrary callables | next |
-| Per-route and per-blueprint policies declared as data | next |
+| `Limiter` as the documented public entry point | done (`Limiter.for_policy`, `policy_for`) |
+| Key builders: route, user, tenant, API key, arbitrary callables | done (`g3_limiter.policies`) |
+| Per-route and per-blueprint policies declared as data | done (`Policy` / `Rule` data model) |
+| Weighted limits (cost per request) | done (`Rule.cost`, `fixed_cost`; atomic in both backends) |
+| Policy evaluation over the V1 engine | done (`PolicyEvaluator`, `PolicyVerdict`) |
+| Per-rule cooldowns and fail-open/fail-closed per policy | done |
+| Global (`scope="global"`) limits | partial (scope already in V1 config, no V2 sugar) |
 | `Retry-After`-aware client helpers | next |
-| Global (`scope="global"`) and weighted limits | next |
 | Django and FastAPI adapters on the existing engine | next |
 | Response hooks (custom status, body, headers) | next |
 
-Design constraint: V2 reuses `LimiterCore` unchanged. `AuthLimiter` keeps working
-through inheritance, so no V1 application has to change.
+Design constraint: V2 reuses `LimiterCore`. `AuthLimiter` keeps working through
+inheritance, so no V1 application has to change. The engine gained two additive
+parameters for this milestone, `cost` on `check` and a public `clock`, plus a
+`storage_failed` flag on `Decision`. Every one of them defaults to the V1
+behaviour, so existing callers are unaffected.
 
-## V3 — Great Shield service
+## V3 — G3 backend service
 
 **Goal:** one policy, enforced everywhere, including by services that are not
 Python.
 
 | Item | Status |
 | --- | --- |
-| `GreatShield` client replacing the `NotImplementedError` stub | planned |
+| `G3Client` client replacing the `NotImplementedError` stub | planned |
 | Central rule store with local caching and fail-safe defaults | planned |
 | Signed configuration so a compromised client cannot raise its own limit | planned |
 | Sync/async Python clients, TypeScript client | planned |

@@ -6,7 +6,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- `PolicyEvaluator`, which evaluates a `Policy` through `LimiterCore`. Each rule
+  gets a narrow engine view keyed on a synthetic identifier, so unrelated budgets
+  never merge and the V1 engine stays the single place limits are enforced.
+- `PolicyVerdict`: `allowed`, `denied_by()`, the full list of rule evaluations,
+  and `storage_failed` so a fail-open "allowed" is distinguishable from a real
+  pass.
+- Weighted request costs end to end. `LimiterCore.check` takes `cost`, both
+  algorithms charge it, and `Storage.log_add` takes an `amount` so the whole
+  charge lands in one atomic operation. Cost applies to every rule in a policy,
+  not only the one that declared it.
+- Per-rule `cooldown_seconds`, including `0` for "block without arming a marker".
+  A refused attempt inside a cooldown does not extend the wait.
+- `KeyBuilder.materials_or_none()`, used by the evaluator to skip a rule whose
+  components are absent rather than raising on an unauthenticated request.
+- `LimiterCore.clock`, so a derived engine evaluates on the same time source as
+  the one it was derived from.
+- `Decision.storage_failed`, so a fail-open decision is self-describing.
+
+### Fixed
+
+- `RedisStorage.increment` accepted an `amount` and adjusted the TTL for it, but
+  the Lua script always issued `INCR` and added 1. A weighted charge was silently
+  dropped on Redis while working in memory. The script now uses `INCRBY`.
+- `RedisStorage` sliding-window log: a weighted hit added several entries sharing
+  one score, and the script passed them to `ZADD` without score/member pairing,
+  which Redis rejects. Entries are now added one at a time with distinct members.
+
+### Changed
+
+- A `Rule` with a static `cost` below 1 is now rejected at construction. A zero
+  cost made the rule unenforceable while still looking configured.
+- The README no longer says the package is unpublished; 0.1.0 is on PyPI.
 
 ## [0.1.0] - 2026-09-28
 
@@ -34,8 +67,8 @@ First release: V1, auth-endpoint rate limiting.
 - Fail-open and fail-closed modes, defaulting to fail-closed for auth.
 - Eager configuration validation: bad limits, namespaces, identifiers and salts
   raise at start-up instead of on the first login attempt.
-- `Limiter` (general-purpose alias) and `GreatShield` (V3 stub) exported for
+- `Limiter` (general-purpose alias) and `G3Client` (V3 stub) exported for
   forward compatibility. Neither fakes functionality.
 
-[Unreleased]: https://github.com/Omonire/great-limiter/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Omonire/great-limiter/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Omonire/g3-limiter/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Omonire/g3-limiter/releases/tag/v0.1.0

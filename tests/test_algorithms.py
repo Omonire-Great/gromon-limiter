@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from great_limiter.algorithms import (
+from g3_limiter.algorithms import (
     ALGORITHMS,
     FixedWindow,
     SlidingWindow,
     get_algorithm,
     storage_key_for,
 )
-from great_limiter.errors import ConfigurationError
-from great_limiter.limits import RateLimit
-from great_limiter.storage.memory import MemoryStorage
+from g3_limiter.errors import ConfigurationError
+from g3_limiter.limits import RateLimit
+from g3_limiter.storage.memory import MemoryStorage
 from tests.conftest import FakeClock
 
 
@@ -40,7 +40,7 @@ def test_get_algorithm_rejects_unknown_name() -> None:
 def test_storage_key_is_namespaced_and_distinct_per_algorithm() -> None:
     fixed = storage_key_for("auth", "fixed_window", "POST /login", "abc")
     sliding = storage_key_for("auth", "sliding_window", "POST /login", "abc")
-    assert fixed == "great_limiter:auth:fixed_window:POST /login:abc"
+    assert fixed == "g3_limiter:auth:fixed_window:POST /login:abc"
     assert fixed != sliding
 
 
@@ -80,6 +80,26 @@ def test_fixed_window_reset(clock: FakeClock, backend: MemoryStorage) -> None:
     algo.check(backend, key="k", limit=limit, now=clock.now)
     algo.reset(backend, key="k")
     assert algo.check(backend, key="k", limit=limit, now=clock.now)[0] == 1
+
+
+def test_fixed_window_charges_a_weighted_cost(clock: FakeClock, backend: MemoryStorage) -> None:
+    algo = FixedWindow()
+    limit = RateLimit.parse("10/minute")
+    key = storage_key_for("t", "fixed_window", "s", "r")
+    # One weighted request consumes several slots, so a caller cannot spend the
+    # whole budget in fewer requests by picking the expensive operation.
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=4)[0] == 4
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=4)[0] == 8
+    # Past the limit after one more weighted hit: 12 > 10.
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=4)[0] == 12
+
+
+def test_fixed_window_rejects_a_cost_below_one(
+    clock: FakeClock, backend: MemoryStorage
+) -> None:
+    algo = FixedWindow()
+    with pytest.raises(ValueError, match="amount must be >= 1"):
+        algo.check(backend, key="k", limit=RateLimit.parse("5/minute"), now=clock.now, cost=0)
 
 
 # ----------------------------------------------------------------- sliding window
@@ -132,6 +152,57 @@ def test_sliding_window_forgets_as_the_window_slides(
     # 31s after the first burst, it has slid out.
     clock.advance(31)
     assert algo.check(backend, key=key, limit=limit, now=clock.now)[0] == 2
+
+
+def test_sliding_window_charges_a_weighted_cost(
+    clock: FakeClock, backend: MemoryStorage
+) -> None:
+    algo = SlidingWindow()
+    limit = RateLimit.parse("10/minute")
+    key = storage_key_for("t", "sliding_window", "s", "r")
+    # Each weighted hit occupies several log entries, so the running count
+    # reflects slots consumed rather than requests seen.
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=4)[0] == 4
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=4)[0] == 8
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=4)[0] == 12
+
+
+def test_sliding_window_weighted_entries_are_all_counted(
+    clock: FakeClock, backend: MemoryStorage
+) -> None:
+    """A weighted hit must not collapse into a single log entry.
+
+    On Redis the log is a sorted set, so entries sharing both score and member
+    overwrite one another. A weighted hit that reused one member would be
+    counted once no matter how much it was supposed to cost.
+    """
+    algo = SlidingWindow()
+    limit = RateLimit.parse("100/minute")
+    for _ in range(10):
+        algo.check(backend, key="k", limit=limit, now=clock.now, cost=3)
+    assert backend.log_count("k", since=clock.now - 1, until=clock.now + 1) == 30
+
+
+def test_sliding_window_weighted_entries_roll_out_with_the_window(
+    clock: FakeClock, backend: MemoryStorage
+) -> None:
+    algo = SlidingWindow()
+    limit = RateLimit.parse("100/minute")
+    key = "k"
+    algo.check(backend, key=key, limit=limit, now=clock.now, cost=5)
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=5)[0] == 10
+    # Both hits were recorded at the same instant, so 61s later the whole burst
+    # has slid out at once and the next request starts from a clean log.
+    clock.advance(61)
+    assert algo.check(backend, key=key, limit=limit, now=clock.now, cost=5)[0] == 5
+
+
+def test_sliding_window_rejects_a_cost_below_one(
+    clock: FakeClock, backend: MemoryStorage
+) -> None:
+    algo = SlidingWindow()
+    with pytest.raises(ValueError, match="amount must be >= 1"):
+        algo.check(backend, key="k", limit=RateLimit.parse("5/minute"), now=clock.now, cost=0)
 
 
 def test_sliding_window_retry_after_points_at_oldest_hit(

@@ -3,15 +3,15 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "great-limiter"
+name = "g3-limiter"
 version = "0.1.0"
 description = "Auth-endpoint rate limiting for Python apps with IP + account awareness, cooldowns and pluggable storage."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-authors = [{ name = "Great Shield" }]
-keywords = ["rate-limit", "brute-force", "security", "flask", "redis", "auth"]
+authors = [{ name = "omonire" }]
+keywords = ["rate-limit", "brute-force", "security", "flask", "redis", "auth", "g3"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -46,17 +46,17 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Omonire/great-limiter"
-Documentation = "https://github.com/Omonire/great-limiter#readme"
-Source = "https://github.com/Omonire/great-limiter"
-Issues = "https://github.com/Omonire/great-limiter/issues"
-Changelog = "https://github.com/Omonire/great-limiter/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Omonire/g3-limiter"
+Documentation = "https://github.com/Omonire/g3-limiter#readme"
+Source = "https://github.com/Omonire/g3-limiter"
+Issues = "https://github.com/Omonire/g3-limiter/issues"
+Changelog = "https://github.com/Omonire/g3-limiter/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-include = ["great_limiter*"]
+include = ["g3_limiter*"]
 
 [tool.setuptools.package-data]
-great_limiter = ["py.typed"]
+g3_limiter = ["py.typed"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -64,7 +64,7 @@ testpaths = ["tests"]
 markers = [
     "redis: storage tests; use a live Redis by setting REDIS_URL, otherwise fakeredis",
 ]
-filterwarnings = ["error::DeprecationWarning:great_limiter.*"]
+filterwarnings = ["error::DeprecationWarning:g3_limiter.*"]
 
 [tool.ruff]
 line-length = 100
@@ -74,11 +74,11 @@ target-version = "py310"
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["great_limiter"]
+known-first-party = ["g3_limiter"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["great_limiter"]
+files = ["g3_limiter"]
 strict = true
 warn_unreachable = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]

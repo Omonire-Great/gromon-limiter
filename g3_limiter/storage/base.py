@@ -73,13 +73,24 @@ class Storage(ABC):
 
     @abstractmethod
     def log_add(
-        self, key: str, *, member: str, timestamp: float, window_seconds: float
+        self, key: str, *, member: str, timestamp: float, window_seconds: float, amount: int = 1
     ) -> tuple[int, float | None]:
         """Atomically append a hit and return ``(count, oldest_timestamp)``.
 
         Entries older than the window are pruned in the same operation. The
         oldest surviving entry determines when a slot frees up, which gives a
         far more accurate ``Retry-After`` than the window end.
+
+        ``amount`` charges the caller more than one slot in a single atomic
+        operation. A weighted operation (an expensive search, say) costs several
+        slots, and the charge must be indivisible: splitting it into several
+        ``log_add`` calls would let concurrent requests slip past the limit
+        between the calls.
+
+        ``member`` identifies the hit and must be unique per call, including
+        across instances sharing the backend. The sliding-window algorithm
+        guarantees that; a caller reusing one value would have its entries merge
+        on the sorted-set backends and be undercounted.
         """
 
     @abstractmethod

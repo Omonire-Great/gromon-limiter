@@ -27,13 +27,13 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from great_limiter.algorithms import NAMESPACE as KEY_NAMESPACE
-from great_limiter.algorithms import get_algorithm, storage_key_for
-from great_limiter.config import Settings
-from great_limiter.errors import RateLimitExceeded, StorageError
-from great_limiter.identifiers import Identity, TrustedProxies, fingerprint
-from great_limiter.limits import RateLimit
-from great_limiter.storage.base import Storage
+from g3_limiter.algorithms import NAMESPACE as KEY_NAMESPACE
+from g3_limiter.algorithms import get_algorithm, storage_key_for
+from g3_limiter.config import Settings
+from g3_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
+from g3_limiter.identifiers import Identity, TrustedProxies, fingerprint
+from g3_limiter.limits import RateLimit
+from g3_limiter.storage.base import Storage
 
 __all__ = [
     "Decision",
@@ -78,6 +78,9 @@ class Decision:
     policy: str | None = None
     message: str = DEFAULT_BLOCK_MESSAGE
     rule: str | None = None
+    #: True when this decision was produced by failing open on a storage error,
+    #: so ``allowed`` reflects a skipped check rather than a passing one.
+    storage_failed: bool = False
 
     @property
     def blocked(self) -> bool:
@@ -149,7 +152,7 @@ class LimiterCore:
     settings:
         Validated configuration (namespace, identifiers, cooldowns, ...).
     storage:
-        A :class:`~great_limiter.storage.base.Storage` backend.
+        A :class:`~g3_limiter.storage.base.Storage` backend.
     clock:
         Time source, injectable so tests can advance time deterministically
         instead of sleeping.
@@ -179,6 +182,16 @@ class LimiterCore:
     @property
     def storage(self) -> Storage:
         return self._storage
+
+    @property
+    def clock(self) -> Callable[[], float]:
+        """The time source in use.
+
+        Exposed so that derived engines (the V2 policy evaluator builds one view
+        per rule) stay on the same clock instead of falling back to the wall
+        clock and disagreeing with the engine they were derived from.
+        """
+        return self._clock
 
     @property
     def trusted_proxies(self) -> TrustedProxies:
@@ -272,6 +285,7 @@ class LimiterCore:
         method: str = "GET",
         limit: RateLimit | str | None = None,
         algorithm: str | None = None,
+        cost: int = 1,
         enforce: bool = False,
     ) -> Decision:
         """Evaluate ``identity`` against every configured rule.
@@ -286,6 +300,11 @@ class LimiterCore:
             Optional per-call limit overriding ``settings.default_limit``.
         algorithm:
             Overrides ``settings``' algorithm; defaults to ``sliding_window``.
+        cost:
+            How many slots this request consumes. The default 1 charges one hit.
+            A larger value charges more in a single atomic storage operation,
+            so an expensive operation cannot be repeated within an otherwise
+            ordinary request budget.
         enforce:
             When ``True``, raise :class:`RateLimitExceeded` instead of returning
             a blocking :class:`Decision`. Frameworks that want to customise the
@@ -293,6 +312,8 @@ class LimiterCore:
         """
         if not self._settings.enabled:
             return Decision(allowed=True)
+        if cost < 1:
+            raise ConfigurationError("cost must be >= 1")
 
         if isinstance(limit, str):
             parsed_limit = RateLimit.parse(limit)
@@ -313,12 +334,14 @@ class LimiterCore:
                 limit=parsed_limit,
                 algo=algo,
                 now=now,
+                cost=cost,
             )
         except StorageError:
             if self._settings.fail_open:
                 return Decision(
                     allowed=True,
                     message="storage unavailable (fail-open)",
+                    storage_failed=True,
                 )
             raise
 
@@ -335,6 +358,7 @@ class LimiterCore:
         limit: RateLimit,
         algo: Any,
         now: float,
+        cost: int = 1,
     ) -> Decision:
         # Phase 1: an active cooldown blocks without consuming a hit.
         for name, component_limit, components in self.rules_for(limit):
@@ -367,7 +391,7 @@ class LimiterCore:
                 continue
             counter = self.storage_key(algo.name, scope, key)
             count, next_available = algo.check(
-                self._storage, key=counter, limit=component_limit, now=now
+                self._storage, key=counter, limit=component_limit, now=now, cost=cost
             )
             results.append(
                 _RuleResult(

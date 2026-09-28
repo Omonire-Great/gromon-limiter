@@ -14,11 +14,11 @@ from collections.abc import Iterator
 import pytest
 import redis
 
-from great_limiter import AuthLimiter
-from great_limiter.config import Settings
-from great_limiter.core import LimiterCore
-from great_limiter.identifiers import Identity
-from great_limiter.storage.redis import RedisStorage
+from g3_limiter import AuthLimiter
+from g3_limiter.config import Settings
+from g3_limiter.core import LimiterCore
+from g3_limiter.identifiers import Identity
+from g3_limiter.storage.redis import RedisStorage
 
 pytestmark = pytest.mark.redis
 
@@ -29,7 +29,7 @@ def _client() -> redis.Redis:
         client = redis.Redis.from_url(url, decode_responses=True)
         client.ping()
         return client
-    if __import__("os").environ.get("GREAT_LIMITER_FAKE_REDIS", "1") == "0":
+    if __import__("os").environ.get("G3_LIMITER_FAKE_REDIS", "1") == "0":
         pytest.skip("no Redis available")
     fakeredis = pytest.importorskip("fakeredis")
     return fakeredis.FakeStrictRedis(decode_responses=True)
@@ -42,7 +42,7 @@ def namespace() -> str:
 
 @pytest.fixture
 def core(namespace: str) -> Iterator[LimiterCore]:
-    storage = RedisStorage(client=_client(), prefix="great_limiter")
+    storage = RedisStorage(client=_client(), prefix="g3_limiter")
     settings = Settings(
         key_salt="integration-salt-not-secret",
         namespace=namespace,
@@ -115,6 +115,84 @@ def test_reset_on_redis(core: LimiterCore) -> None:
     assert core.check(identity, path="/login", method="POST").allowed
 
 
+def test_weighted_cost_is_atomic_across_engines(namespace: str) -> None:
+    """A weighted charge must not be splittable by concurrency.
+
+    Each request costs 3 against a limit of 30, so at most 10 can pass. If the
+    charge were applied in more than one storage operation, two engines could
+    both read a count that still fit and both write back, letting more through
+    than the policy allows.
+    """
+    client = _client()
+    settings = Settings(
+        key_salt="weighted-salt",
+        namespace=namespace,
+        default_limit="30/minute",
+        identifier=("ip",),
+    ).validated()
+    engines = [
+        LimiterCore(settings, RedisStorage(client=client, prefix="g3_limiter"))
+        for _ in range(4)
+    ]
+    identity = Identity(ip="7.7.7.7")
+    try:
+        allowed = sum(
+            1
+            for engine in engines
+            for _ in range(10)
+            if engine.check(identity, path="/search", cost=3).allowed
+        )
+        assert allowed == 10
+    finally:
+        engines[0].clear_all()
+        for engine in engines:
+            engine.storage.close()
+
+
+def test_weighted_policy_rules_on_redis(namespace: str) -> None:
+    """A V2 policy with a weighted rule behaves the same on a shared backend."""
+    from g3_limiter.engine import PolicyEvaluator
+    from g3_limiter.policies import KeyBuilder, Policy, Rule, by_user
+
+    client = _client()
+    storage = RedisStorage(client=client, prefix="g3_limiter")
+    engine = LimiterCore(
+        Settings(key_salt="v2-redis-salt", namespace=namespace).validated(), storage
+    )
+    policy = Policy(
+        name="search",
+        rules=(
+            Rule(key=by_user(), limit="20/minute", cost=3, name="user"),
+            Rule(
+                key=KeyBuilder(components=("tenant", "user"), independent=True),
+                limit="100/minute",
+                name="tenant-or-user",
+            ),
+        ),
+    )
+    evaluator = PolicyEvaluator(engine)
+    identity = Identity(extras={"user": "u1", "tenant": "acme"})
+    try:
+        results = [evaluator.check(policy, identity, path="/search").allowed for _ in range(8)]
+        # 3 slots each against a limit of 20: the seventh request reaches 21.
+        assert results == [True] * 6 + [False, False]
+
+        # A different user in the same tenant is limited by its own fresh user
+        # bucket and by the shared tenant bucket, which has room left.
+        other = Identity(extras={"user": "u2", "tenant": "acme"})
+        assert evaluator.check(policy, other, path="/search").allowed
+
+        # Moving to another tenant does not launder the spent user budget: the
+        # by_user rule is keyed on the user alone, so a caller cannot escape a
+        # limit by presenting a different tenant. That is the whole point of
+        # keeping the user rule independent of the tenant dimension.
+        elsewhere = Identity(extras={"user": "u1", "tenant": "other"})
+        assert not evaluator.check(policy, elsewhere, path="/search").allowed
+    finally:
+        engine.clear_all()
+        storage.close()
+
+
 def test_many_engines_share_one_limiter(namespace: str) -> None:
     """The distributed case: separate Engine objects, one Redis, one rule set.
 
@@ -127,7 +205,7 @@ def test_many_engines_share_one_limiter(namespace: str) -> None:
         key_salt=salt, namespace=namespace, default_limit="50/minute", identifier=("ip",)
     ).validated()
     engines = [
-        LimiterCore(settings, RedisStorage(client=client, prefix="great_limiter"))
+        LimiterCore(settings, RedisStorage(client=client, prefix="g3_limiter"))
         for _ in range(4)
     ]
     identity = Identity(ip="9.9.9.9")
@@ -156,7 +234,7 @@ def test_concurrent_requests_never_exceed_the_limit(namespace: str) -> None:
         default_limit="100/minute",
         identifier=("ip",),
     ).validated()
-    storage = RedisStorage(client=client, prefix="great_limiter")
+    storage = RedisStorage(client=client, prefix="g3_limiter")
     engine = LimiterCore(settings, storage)
     identity = Identity(ip="8.8.8.8")
     threads = 8
@@ -198,7 +276,7 @@ def test_flask_app_on_redis(namespace: str) -> None:
     limiter = AuthLimiter(
         app,
         limit="2/minute",
-        storage=RedisStorage(client=client, prefix="great_limiter"),
+        storage=RedisStorage(client=client, prefix="g3_limiter"),
         namespace=namespace,
         key_salt="flask-redis-salt",
     )

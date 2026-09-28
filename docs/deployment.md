@@ -17,11 +17,11 @@ four workers and `limit="5/minute"`, a naive deployment lets an attacker make
 ## Environment
 
 ```console
-export GREAT_LIMITER_KEY_SALT="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export G3_LIMITER_KEY_SALT="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 export REDIS_URL="rediss://user:password@redis.internal:6379/0"
 ```
 
-- `GREAT_LIMITER_KEY_SALT` must be **identical on every instance** of the
+- `G3_LIMITER_KEY_SALT` must be **identical on every instance** of the
   application. A different salt per instance means a different key space per
   instance, which silently disables shared limiting.
 - Generate it once and store it in a secret manager. Rotating it resets all
@@ -34,7 +34,7 @@ export REDIS_URL="rediss://user:password@redis.internal:6379/0"
 ```python
 import os
 from flask import Flask
-from great_limiter import AuthLimiter
+from g3_limiter import AuthLimiter
 
 app = Flask(__name__)
 
@@ -127,7 +127,7 @@ AuthLimiter(
 
 ## Observability
 
-The package logs to the `great_limiter` logger and only emits operational
+The package logs to the `g3_limiter` logger and only emits operational
 metadata: namespace, rule name, fail-open/fail-closed transitions. No
 identifiers, no bodies, no secrets. Everything else is exposed on the response,
 so metrics can be derived from it:
@@ -157,7 +157,7 @@ memory growth (sliding-window logs hold one entry per hit per window).
 
 ## Checklist
 
-- [ ] `GREAT_LIMITER_KEY_SALT` set from a secret manager, identical everywhere
+- [ ] `G3_LIMITER_KEY_SALT` set from a secret manager, identical everywhere
 - [ ] `storage="redis"` with more than one worker or replica
 - [ ] TLS to Redis, credentials from the environment
 - [ ] `trusted_proxies` lists exactly the proxies in front of the app
@@ -174,7 +174,7 @@ memory growth (sliding-window logs hold one entry per hit per window).
    [roadmap.md](roadmap.md).
 2. `V1.x` changes are additive: new optional settings, new algorithms. Existing
    constructor calls keep working.
-3. Changing `GREAT_LIMITER_KEY_SALT`, `namespace` or `algorithm` changes storage
+3. Changing `G3_LIMITER_KEY_SALT`, `namespace` or `algorithm` changes storage
    keys and therefore resets counters for the affected keys. Do it deliberately,
    during a quiet period, and expect a one-off burst of effectively unthrottled
    attempts.

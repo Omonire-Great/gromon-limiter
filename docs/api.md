@@ -3,10 +3,10 @@
 Everything public is importable from the package root:
 
 ```python
-from great_limiter import (
+from g3_limiter import (
     AuthLimiter,          # Flask limiter for authentication endpoints
     Limiter,              # V2 general-purpose alias (see roadmap)
-    GreatShield,          # V3 stub: raises NotImplementedError
+    G3Client,          # V3 stub: raises NotImplementedError
     LimiterCore,          # framework-agnostic engine
     Decision,             # the result of one evaluation
     RateLimit,            # an immutable "<amount> per <window>" value
@@ -14,7 +14,7 @@ from great_limiter import (
     Storage, CounterState, MemoryStorage, RedisStorage,
     build_headers, build_payload, build_body,
     client_ip, TrustedProxies,
-    GreatLimiterError, ConfigurationError, InvalidLimitError,
+    G3LimiterError, ConfigurationError, InvalidLimitError,
     RateLimitExceeded, StorageError,
 )
 ```
@@ -205,7 +205,7 @@ Helpers: `resolve_key_salt(explicit, *, storage_name)` and
 
 ```python
 storage = MemoryStorage(max_keys=100_000, clock=None)
-storage = RedisStorage(url=..., client=..., prefix="great_limiter", **client_kwargs)
+storage = RedisStorage(url=..., client=..., prefix="g3_limiter", **client_kwargs)
 storage = build_storage("redis", url=..., client=...)
 ```
 
@@ -235,11 +235,11 @@ closes a client it created on exit.
 at decoration time, not on the first request.
 
 Introspection helpers: `view_limit(view)` and `view_algorithm(view)` from
-`great_limiter.decorators`.
+`g3_limiter.decorators`.
 
 ---
 
-## Flask helpers (`great_limiter.flask`)
+## Flask helpers (`g3_limiter.flask`)
 
 | Helper | Purpose |
 | --- | --- |
@@ -248,14 +248,14 @@ Introspection helpers: `view_limit(view)` and `view_algorithm(view)` from
 | `resolve_limiter(app)` | the limiter registered on an app, or `ConfigurationError` |
 | `build_identity(account_fields, *, trusted_proxies=None, headers=None)` | build an `Identity` from the current request |
 | `current_decision()` | the `Decision` recorded for this request, if any |
-| `EXTENSION_KEY` | `"great_limiter"`, the `app.extensions` key |
+| `EXTENSION_KEY` | `"g3_limiter"`, the `app.extensions` key |
 
 ---
 
 ## Errors
 
 ```
-GreatLimiterError
+G3LimiterError
 ├── ConfigurationError (also a ValueError)
 │   └── InvalidLimitError
 ├── StorageError

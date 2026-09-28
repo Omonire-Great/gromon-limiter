@@ -27,9 +27,9 @@ import itertools
 import secrets
 from typing import ClassVar, Protocol
 
-from great_limiter.errors import ConfigurationError
-from great_limiter.limits import RateLimit
-from great_limiter.storage.base import Storage
+from g3_limiter.errors import ConfigurationError
+from g3_limiter.limits import RateLimit
+from g3_limiter.storage.base import Storage
 
 __all__ = [
     "ALGORITHMS",
@@ -41,7 +41,7 @@ __all__ = [
 ]
 
 #: Key namespace. Prefixed on every key so a shared Redis database stays legible.
-NAMESPACE = "great_limiter"
+NAMESPACE = "g3_limiter"
 
 
 class Algorithm(Protocol):
@@ -50,13 +50,20 @@ class Algorithm(Protocol):
     name: ClassVar[str]
 
     def check(
-        self, storage: Storage, *, key: str, limit: RateLimit, now: float
+        self, storage: Storage, *, key: str, limit: RateLimit, now: float, cost: int = 1
     ) -> tuple[int, float | None]:
         """Record a hit and return ``(count, next_available_at)``.
 
         ``count`` includes the hit just recorded, so it is 1 on the first
         request. ``next_available_at`` is the absolute unix timestamp at which
         one slot frees up, or ``None`` if the store cannot say.
+
+        ``cost`` is the number of slots this request consumes. It is 1 for
+        ordinary traffic and larger for an operation that is genuinely more
+        expensive, so a fixed request budget cannot be spent quickly by a caller
+        that keeps choosing the costly variant. The whole charge has to be
+        applied in one storage operation, otherwise concurrent callers could
+        each pass a limit that only the sum of their costs would breach.
         """
         ...
 
@@ -82,9 +89,11 @@ class FixedWindow:
     name: ClassVar[str] = "fixed_window"
 
     def check(
-        self, storage: Storage, *, key: str, limit: RateLimit, now: float
+        self, storage: Storage, *, key: str, limit: RateLimit, now: float, cost: int = 1
     ) -> tuple[int, float | None]:
-        state = storage.increment(key, window_seconds=limit.window_seconds)
+        state = storage.increment(
+            key, amount=cost, window_seconds=limit.window_seconds
+        )
         return state.value, state.reset_at
 
     def reset(self, storage: Storage, *, key: str) -> None:
@@ -108,19 +117,28 @@ class SlidingWindow:
         self._counter = itertools.count()
 
     def _member(self, now: float) -> str:
+        # Unique per instance *and* per call. The suffix matters for weighted
+        # hits, where one call adds several entries that share a score: on Redis
+        # those entries live in a sorted set, and two entries with the same score
+        # and member would collapse into one and undercount the cost.
         return f"{now:.6f}-{self._prefix}-{next(self._counter)}"
 
     def check(
-        self, storage: Storage, *, key: str, limit: RateLimit, now: float
+        self, storage: Storage, *, key: str, limit: RateLimit, now: float, cost: int = 1
     ) -> tuple[int, float | None]:
         count, oldest = storage.log_add(
             key,
             member=self._member(now),
             timestamp=now,
             window_seconds=limit.window_seconds,
+            amount=cost,
         )
         if oldest is None:  # pragma: no cover - log_add always returns an entry
             return count, now + limit.window_seconds
+        # The retry hint points at the oldest entry, which frees one slot. With
+        # cost > 1 a client following it exactly may still be blocked and have to
+        # come back. That errs towards an honest 429 rather than a false "you may
+        # retry now", which would be worse: the client would loop.
         return count, oldest + limit.window_seconds
 
     def reset(self, storage: Storage, *, key: str) -> None:

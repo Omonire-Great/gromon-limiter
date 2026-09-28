@@ -10,10 +10,10 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from great_limiter.errors import ConfigurationError
-from great_limiter.storage.base import CounterState, Storage
-from great_limiter.storage.memory import MemoryStorage
-from great_limiter.storage.redis import RedisStorage
+from g3_limiter.errors import ConfigurationError
+from g3_limiter.storage.base import CounterState, Storage
+from g3_limiter.storage.memory import MemoryStorage
+from g3_limiter.storage.redis import RedisStorage
 
 __all__ = [
     "CounterState",
@@ -31,7 +31,7 @@ def build_storage(
     *,
     url: str | None = None,
     client: Any = None,
-    prefix: str = "great_limiter",
+    prefix: str = "g3_limiter",
 ) -> Storage:
     """Build a storage backend by name.
 
