@@ -1,0 +1,24 @@
+# Git for Windows checks out CRLF by default, which silently breaks YAML
+# consumers that are strict about line endings. GitHub Actions rejects a
+# workflow file containing CRLF, so the fix has to happen in the index.
+* text=auto eol=lf
+
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cfg text eol=lf
+*.in text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+# Nothing here is a Windows executable, but be explicit so nobody has to think
+# about it if a .bat or .ps1 helper appears later.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+*.whl binary
+*.png binary
+*.jpg binary
+*.gz binary

@@ -1,0 +1,92 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "great-limiter"
+version = "0.1.0"
+description = "Auth-endpoint rate limiting for Python apps with IP + account awareness, cooldowns and pluggable storage."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Great Shield" }]
+keywords = ["rate-limit", "brute-force", "security", "flask", "redis", "auth"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+# The core engine is dependency-free on purpose: the SDK must stay usable
+# without a web framework and without Redis.
+dependencies = []
+
+[project.optional-dependencies]
+flask = ["flask>=2.3"]
+redis = ["redis>=5.0"]
+# fakeredis + lupa run the real Lua scripts in-process, so the Redis backend is
+# covered even on a machine with no Redis server. Set REDIS_URL to test a real one.
+dev = [
+    "flask>=2.3",
+    "redis>=5.0",
+    "pytest>=7.4",
+    "pytest-cov>=5.0",
+    "fakeredis>=2.20",
+    "lupa>=2.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "build>=1.2",
+    "twine>=5.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/CyberExpert-ZT/great-limiter"
+Documentation = "https://github.com/CyberExpert-ZT/great-limiter#readme"
+Source = "https://github.com/CyberExpert-ZT/great-limiter"
+Issues = "https://github.com/CyberExpert-ZT/great-limiter/issues"
+Changelog = "https://github.com/CyberExpert-ZT/great-limiter/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["great_limiter*"]
+
+[tool.setuptools.package-data]
+great_limiter = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+markers = [
+    "redis: storage tests; use a live Redis by setting REDIS_URL, otherwise fakeredis",
+]
+filterwarnings = ["error::DeprecationWarning:great_limiter.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["great_limiter"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["great_limiter"]
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+# numpy ships 3.12-only stubs but is only pulled in transitively by test
+# tooling, so its syntax must not block checking the 3.10 target.
+[[tool.mypy.overrides]]
+module = ["fakeredis.*", "lupa.*", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = false
+ignore_missing_imports = true

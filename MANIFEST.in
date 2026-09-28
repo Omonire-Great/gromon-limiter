@@ -1,0 +1,17 @@
+# The sdist is what people install from when a dist fails, and what packagers
+# (Debian, Homebrew, Arch) read. It must therefore carry the tests and the docs,
+# not just the importable package: without them nobody can run the suite or read
+# the security model from the archive.
+include LICENSE
+include README.md
+include CHANGELOG.md
+include pyproject.toml
+recursive-include docs *.md
+recursive-include examples *.py
+recursive-include tests *.py
+include great_limiter/py.typed
+
+# Caches and build output never belong in an archive.
+global-exclude *.py[cod]
+global-exclude __pycache__/*
+prune .github/workflows

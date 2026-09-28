@@ -1,0 +1,182 @@
+"""Public API surface.
+
+The package exposes a small, explicit API: :class:`AuthLimiter` is the entry
+point for authentication endpoints (V1), :class:`Limiter` is general purpose
+(V2), and :class:`GreatShield` is the SaaS client stub (present but not yet
+implemented in full, to keep the scope to V1). Every symbol here is considered
+stable within its milestone.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from great_limiter.core import (
+    Decision,
+    LimiterCore,
+    build_body,
+    build_headers,
+    build_payload,
+)
+from great_limiter.errors import (
+    ConfigurationError,
+    GreatLimiterError,
+    InvalidLimitError,
+    RateLimitExceeded,
+    StorageError,
+)
+from great_limiter.identifiers import Identity, TrustedProxies, client_ip
+from great_limiter.limits import RateLimit
+from great_limiter.storage.base import CounterState, Storage
+from great_limiter.storage.memory import MemoryStorage
+from great_limiter.storage.redis import RedisStorage
+
+if TYPE_CHECKING:  # pragma: no cover - only needed by type checkers
+    from flask import Flask
+
+    from great_limiter.config import Settings
+
+__all__ = [
+    "AuthLimiter",
+    "ConfigurationError",
+    "CounterState",
+    "Decision",
+    "GreatLimiterError",
+    "GreatShield",
+    "Identity",
+    "InvalidLimitError",
+    "Limiter",
+    "LimiterCore",
+    "MemoryStorage",
+    "RateLimit",
+    "RateLimitExceeded",
+    "RedisStorage",
+    "Storage",
+    "StorageError",
+    "TrustedProxies",
+    "build_body",
+    "build_headers",
+    "build_payload",
+    "client_ip",
+]
+
+
+# ---------------------------------------------------------------- V1 entry points
+
+
+class AuthLimiter:
+    """Flask-aware authentication limiter (V1).
+
+    This class wires :class:`LimiterCore` to Flask's request/response cycle. It
+    is intentionally thin: all policy lives in the core and in configuration.
+    The constructor accepts either an existing Flask app (to initialise
+    immediately) or ``None`` (to use ``init_app`` later).
+    """
+
+    _core: LimiterCore | None
+    _settings: Settings | None
+    _storage: Storage | None
+    _app: Flask | None
+    _kwargs: dict[str, Any]
+
+    def __init__(self, app: Flask | None = None, **kwargs: Any) -> None:
+        # Keyword arguments are held so that the deferred form
+        # ``AuthLimiter(limit=...).init_app(app)`` behaves exactly like
+        # ``AuthLimiter(app, limit=...)``.
+        self._core = None
+        self._settings = None
+        self._storage = None
+        self._app = None
+        self._kwargs = dict(kwargs)
+        if app is not None:
+            self.init_app(app)
+
+    def init_app(self, app: Flask | None = None, **kwargs: Any) -> AuthLimiter:
+        """Bind the limiter to a Flask app.
+
+        Called without ``app`` the arguments are only stored, for a later
+        ``init_app(app)`` call.
+        """
+        from great_limiter.flask import init_auth_limiter
+
+        if app is None:
+            self._kwargs.update(kwargs)
+            return self
+        init_auth_limiter(self, app, **{**self._kwargs, **kwargs})
+        return self
+
+    @property
+    def core(self) -> LimiterCore:
+        if self._core is None:
+            raise RuntimeError("AuthLimiter not initialised; call init_app first")
+        return self._core
+
+    def core_or_none(self) -> LimiterCore | None:
+        """Return the engine, or ``None`` when the limiter is not bound yet."""
+        return self._core
+
+    @property
+    def settings(self) -> Settings:
+        if self._settings is None:
+            raise RuntimeError("AuthLimiter not initialised; call init_app first")
+        return self._settings
+
+    @property
+    def storage(self) -> Storage:
+        if self._storage is None:
+            raise RuntimeError("AuthLimiter not initialised; call init_app first")
+        return self._storage
+
+    def limit(self, limit: str | RateLimit | None = None, **options: Any) -> Any:
+        """Decorate a view with a per-route limit.
+
+        Called without an argument the limiter's configured default applies;
+        pass a string such as ``"5/minute"`` to override it for one route.
+        """
+        from great_limiter.decorators import limit as _limit
+
+        return _limit(self, limit, **options)
+
+    def check(self, **kwargs: Any) -> Decision:
+        """Evaluate a limit outside a request cycle (see ``LimiterCore.check``)."""
+        return self.core.check(**kwargs)
+
+    def reset(self, **kwargs: Any) -> int:
+        """Drop stored counters for a caller, e.g. after a successful login."""
+        return self.core.reset(**kwargs)
+
+    def clear_all(self) -> int:
+        """Remove every counter this limiter owns. Mainly for tests and tooling."""
+        return self.core.clear_all()
+
+
+# ---------------------------------------------------------------- V2 entry point (scaffold)
+
+
+class Limiter(AuthLimiter):
+    """General-purpose API limiter (V2).
+
+    Shares the same engine as :class:`AuthLimiter` but is named explicitly for
+    non-auth endpoints. Backward compatibility with V1 is preserved by
+    inheritance: existing code using ``AuthLimiter`` continues to work.
+    """
+
+    pass
+
+
+# ---------------------------------------------------------------- V3/V5 stub
+
+
+class GreatShield:
+    """SaaS client stub for Great Shield (V3+).
+
+    The full central service client is out of scope for V1. This placeholder is
+    exported so the public API surface matches the final product vision without
+    faking behaviour.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - stub
+        raise NotImplementedError(
+            "GreatShield is not implemented in V1. It will be introduced in V3 "
+            "(centralised rate limiting service)."
+        )
