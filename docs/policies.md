@@ -207,7 +207,14 @@ only, not settings construction.
   builder raises at start-up rather than on the first request.
 - `fail_closed` is a per-policy decision, which is the point: an auth or payment
   endpoint wants to deny when storage misbehaves, a public read endpoint does
-  not.
+  not. The policy wins over `Settings.fail_open` on the parent engine in both
+  directions, so the setting you set on the policy is the setting you get
+  regardless of how the engine was built. A rule view never swallows a storage
+  error on its own, because doing so would make the fail-closed branch
+  unreachable and quietly invert the policy's intent.
+- Two policies that share a name are still enforced independently, but their
+  rule views are only shared when the rule label and cooldown match too, since
+  the cooldown is the one part of a rule baked into that cache.
 - A zero cost is rejected at construction. It would make a rule unenforceable
   while still looking configured.
 - The policy evaluator shares the parent engine's clock, so tests that inject a

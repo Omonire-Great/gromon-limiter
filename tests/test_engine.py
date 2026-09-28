@@ -408,6 +408,90 @@ def test_fail_closed_policy_propagates_the_storage_error() -> None:
         ev.check(policy, Identity(ip="1.2.3.4"))
 
 
+def test_fail_closed_policy_beats_a_fail_open_parent_engine() -> None:
+    """The policy owns the fail-open decision, not the engine it borrows.
+
+    The parent engine here is configured fail-open, which used to swallow the
+    storage error inside the engine and hand back an allowed decision. The
+    evaluator never saw the exception, so its own ``fail_closed=True`` branch
+    was unreachable and the policy silently failed open. A policy that says
+    "fail closed" has to mean it no matter how the engine was configured.
+    """
+    from g3_limiter.errors import StorageError
+
+    ev = _broken_evaluator(fail_open=True)
+    policy = Policy(
+        name="flaky",
+        fail_closed=True,
+        rules=(Rule(key=by_ip(), limit="1/minute", name="ip"),),
+    )
+    with pytest.raises(StorageError):
+        ev.check(policy, Identity(ip="1.2.3.4"))
+
+
+def test_fail_open_policy_beats_a_fail_closed_parent_engine() -> None:
+    """The mirror image: a fail-open policy still fails open.
+
+    A fail-closed parent must not turn a policy that explicitly chose
+    fail-open into an outage for a security control nobody is reading.
+    """
+    ev = _broken_evaluator(fail_open=False)
+    policy = Policy(
+        name="flaky",
+        fail_closed=False,
+        rules=(Rule(key=by_ip(), limit="1/minute", name="ip"),),
+    )
+    verdict = ev.check(policy, Identity(ip="1.2.3.4"))
+    assert verdict.allowed
+    assert verdict.storage_failed
+    # Every rule that was skipped has to say so, not just the overall verdict:
+    # a caller auditing `verdict.evaluations` must not read a skipped check as
+    # one that passed.
+    assert all(d.storage_failed for _, d in verdict.evaluations)
+
+
+def test_policies_sharing_a_name_do_not_share_a_cooldown() -> None:
+    """Two policies with one name keep their own cooldowns.
+
+    The rule view is cached per policy and rule, and the cooldown is baked into
+    that cache. Keying the cache on the name and label alone meant the first
+    policy registered under a name imposed its cooldown on every later policy
+    with that name, which is the kind of bug that shows up as "this endpoint is
+    mysteriously stricter than the config says".
+    """
+    clock = FakeClock()
+    ev = make_evaluator(clock)
+
+    lenient = Policy(
+        name="shared",
+        rules=(
+            Rule(key=by_ip(), limit="1/minute", name="ip", cooldown_seconds=0),
+        ),
+    )
+    strict = Policy(
+        name="shared",
+        rules=(
+            Rule(key=by_ip(), limit="1/minute", name="ip", cooldown_seconds=300),
+        ),
+    )
+
+    # The lenient policy arms no marker, so the caller is let back in once the
+    # window has passed.
+    lenient_id = Identity(ip="1.1.1.1")
+    assert ev.check(lenient, lenient_id, path="/login", method="POST").allowed
+    assert not ev.check(lenient, lenient_id, path="/login", method="POST").allowed
+    clock.advance(61)
+    assert ev.check(lenient, lenient_id, path="/login", method="POST").allowed
+
+    # The strict policy is identical in name and rule label but asks for a real
+    # cooldown, and the lenient one must not have leaked into it.
+    strict_id = Identity(ip="2.2.2.2")
+    assert ev.check(strict, strict_id, path="/login", method="POST").allowed
+    assert not ev.check(strict, strict_id, path="/login", method="POST").allowed
+    clock.advance(61)
+    assert not ev.check(strict, strict_id, path="/login", method="POST").allowed
+
+
 # ----------------------------------------------------------------------- resets
 
 

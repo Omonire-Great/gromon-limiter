@@ -105,7 +105,14 @@ class PolicyEvaluator:
         # One engine view per (policy, rule), each restricted to a single
         # synthetic identifier. Built once and reused: constructing a Settings
         # per request would be visible in the hot path.
-        self._rule_cores: dict[tuple[str, str], LimiterCore] = {}
+        #
+        # The cooldown is part of the key because it is the one piece of a rule
+        # that gets baked into the cached view; the limit is passed per check, so
+        # two policies sharing a name and label still count independently against
+        # their own limits. Keying on the cooldown means the views are shared
+        # only when they would behave identically, instead of the first policy
+        # with a given name quietly imposing its cooldown on every later one.
+        self._rule_cores: dict[tuple[str, str, float | None], LimiterCore] = {}
 
     @property
     def core(self) -> LimiterCore:
@@ -125,7 +132,7 @@ class PolicyEvaluator:
         in as that name's value, so one view serves every caller while each
         caller still gets its own counter.
         """
-        slot = (policy.name, rule.label)
+        slot = (policy.name, rule.label, rule.cooldown_seconds)
         existing = self._rule_cores.get(slot)
         component = _component_name(policy, rule)
         if existing is not None:
@@ -137,6 +144,14 @@ class PolicyEvaluator:
             # policy says, with no hidden scaling.
             "extra_identifier_fields": frozenset({component}),
             "account_limit_multiplier": 1.0,
+            # The rule view always surfaces storage errors, and this evaluator
+            # decides what to do with them from `policy.fail_closed`. If the view
+            # inherited the parent's `fail_open=True` it would swallow the error
+            # and return an allowed decision, and a policy marked fail-closed
+            # would quietly fail open with no way left to propagate it. Pinning
+            # this off makes the policy, not the parent engine, the single source
+            # of truth for the fail-open decision.
+            "fail_open": False,
         }
         if rule.cooldown_seconds is not None:
             # A per-rule cooldown overrides the engine-wide default, and
@@ -218,7 +233,18 @@ class PolicyEvaluator:
                         policy.name,
                     )
                     evaluations.append(
-                        (rule, Decision(allowed=True, message="storage unavailable"))
+                        (
+                            rule,
+                            Decision(
+                                allowed=True,
+                                message="storage unavailable",
+                                # Mark the individual rule too, not just the
+                                # overall verdict: a caller auditing
+                                # `verdict.evaluations` must not read a skipped
+                                # check as one that passed.
+                                storage_failed=True,
+                            ),
+                        )
                     )
                     continue
 
