@@ -33,11 +33,12 @@ dashboards, hosted API.
 
 | Item | Status |
 | --- | --- |
-| `Limiter` as the documented public entry point | scaffold only (currently an `AuthLimiter` subclass) |
-| Key builders: route, user, tenant, API key, arbitrary callables | next |
-| Per-route and per-blueprint policies declared as data | next |
+| `Limiter` as the documented public entry point | done (`Limiter.for_policy`, `policy_for`) |
+| Key builders: route, user, tenant, API key, arbitrary callables | done (`great_limiter.policies`) |
+| Per-route and per-blueprint policies declared as data | done (`Policy` / `Rule` data model) |
+| Weighted limits (cost per request) | done (`Rule.cost`, `fixed_cost`) |
+| Global (`scope="global"`) and weighted limits | partial (weights done, global scope already in V1 config) |
 | `Retry-After`-aware client helpers | next |
-| Global (`scope="global"`) and weighted limits | next |
 | Django and FastAPI adapters on the existing engine | next |
 | Response hooks (custom status, body, headers) | next |
 

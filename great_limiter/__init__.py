@@ -27,6 +27,19 @@ from great_limiter.errors import (
 )
 from great_limiter.identifiers import Identity, TrustedProxies, client_ip
 from great_limiter.limits import RateLimit
+from great_limiter.policies import (
+    KeyBuilder,
+    Policy,
+    Rule,
+    by_account,
+    by_api_key,
+    by_ip,
+    by_route,
+    by_tenant,
+    by_user,
+    compose_key,
+    fixed_cost,
+)
 from great_limiter.storage.base import CounterState, Storage
 from great_limiter.storage.memory import MemoryStorage
 from great_limiter.storage.redis import RedisStorage
@@ -45,19 +58,30 @@ __all__ = [
     "GreatShield",
     "Identity",
     "InvalidLimitError",
+    "KeyBuilder",
     "Limiter",
     "LimiterCore",
     "MemoryStorage",
+    "Policy",
     "RateLimit",
     "RateLimitExceeded",
     "RedisStorage",
+    "Rule",
     "Storage",
     "StorageError",
     "TrustedProxies",
     "build_body",
     "build_headers",
     "build_payload",
+    "by_account",
+    "by_api_key",
+    "by_ip",
+    "by_route",
+    "by_tenant",
+    "by_user",
     "client_ip",
+    "compose_key",
+    "fixed_cost",
 ]
 
 
@@ -78,6 +102,10 @@ class AuthLimiter:
     _storage: Storage | None
     _app: Flask | None
     _kwargs: dict[str, Any]
+    #: V2 policy default. Declared here rather than only on ``Limiter`` so that
+    #: the attribute exists on every instance and ``policy_for`` never raises
+    #: AttributeError on a V1 object.
+    default_policy: Policy | None = None
 
     def __init__(self, app: Flask | None = None, **kwargs: Any) -> None:
         # Keyword arguments are held so that the deferred form
@@ -159,9 +187,34 @@ class Limiter(AuthLimiter):
     Shares the same engine as :class:`AuthLimiter` but is named explicitly for
     non-auth endpoints. Backward compatibility with V1 is preserved by
     inheritance: existing code using ``AuthLimiter`` continues to work.
+
+    V2 adds the declarative model in :mod:`great_limiter.policies`: a
+    :class:`Policy` of :class:`Rule` objects, each with its own
+    :class:`KeyBuilder`, limit and optional cost. Adapters bind a policy to a
+    route and evaluate every rule, allowing a request only when all of them do.
     """
 
-    pass
+    @classmethod
+    def for_policy(cls, policy: Policy, **kwargs: Any) -> Limiter:
+        """Build a limiter whose routes share one policy.
+
+        The small factory exists so the policy is validated once, at start-up,
+        rather than on the first request that reaches a decorated route.
+        """
+        if not isinstance(policy, Policy):
+            raise ConfigurationError(
+                f"for_policy expects a Policy, got {type(policy).__name__}"
+            )
+        limiter = cls(**kwargs)
+        limiter.default_policy = policy
+        return limiter
+
+    def policy_for(self, override: Policy | None = None) -> Policy | None:
+        """Return the policy that applies to a route, or ``None`` to skip."""
+        chosen = override if override is not None else self.default_policy
+        if chosen is None or chosen.is_empty():
+            return None
+        return chosen
 
 
 # ---------------------------------------------------------------- V3/V5 stub
