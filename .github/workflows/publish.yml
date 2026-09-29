@@ -36,6 +36,15 @@ jobs:
       - name: Check distributions
         run: twine check dist/*
 
-      # Publish to PyPI via Trusted Publishing (OIDC). No API token is stored.
+      # Trusted publishing (OIDC) cannot create a project: a PyPI project only
+      # comes into existence through an upload, and a publisher cannot be
+      # registered against a name that does not exist yet. So the very first
+      # release of g3-limiter needs a one-off token, supplied as the
+      # PYPI_API_TOKEN secret. An unset secret expands to an empty string, which
+      # the action treats as absent and falls back to OIDC, so once a trusted
+      # publisher is registered on PyPI this step needs no credential at all.
+      # After the first successful upload, delete the PYPI_API_TOKEN secret.
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
