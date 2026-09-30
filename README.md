@@ -3,7 +3,7 @@
 Rate limiting for authentication endpoints, built for the
 [Omonire](https://github.com/omonire) project.
 
-[![CI](https://github.com/Omonire/Omonire-Limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/Omonire/Omonire-Limiter/actions/workflows/ci.yml)
+[![CI](https://github.com/Omonire-Great/Omonire-Limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/Omonire-Great/Omonire-Limiter/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 

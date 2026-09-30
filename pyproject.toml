@@ -46,11 +46,11 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Omonire/Omonire-Limiter"
-Documentation = "https://github.com/Omonire/Omonire-Limiter#readme"
-Source = "https://github.com/Omonire/Omonire-Limiter"
-Issues = "https://github.com/Omonire/Omonire-Limiter/issues"
-Changelog = "https://github.com/Omonire/Omonire-Limiter/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/Omonire-Great/Omonire-Limiter"
+Documentation = "https://github.com/Omonire-Great/Omonire-Limiter#readme"
+Source = "https://github.com/Omonire-Great/Omonire-Limiter"
+Issues = "https://github.com/Omonire-Great/Omonire-Limiter/issues"
+Changelog = "https://github.com/Omonire-Great/Omonire-Limiter/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["omonire_limiter*"]

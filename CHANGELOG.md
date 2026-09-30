@@ -107,6 +107,6 @@ First release, published as `g3-limiter`: V1, auth-endpoint rate limiting.
 - `Limiter` (general-purpose alias) and `G3Client` (V3 stub) exported for
   forward compatibility. Neither fakes functionality.
 
-[Unreleased]: https://github.com/Omonire/Omonire-Limiter/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Omonire/Omonire-Limiter/releases/tag/v1.0.0
-[0.1.0]: https://github.com/Omonire/g3-limiter/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Omonire-Great/Omonire-Limiter/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Omonire-Great/Omonire-Limiter/releases/tag/v1.0.0
+[0.1.0]: https://pypi.org/project/g3-limiter/0.1.0/

@@ -14,7 +14,7 @@ jobs:
     name: build and publish
     runs-on: ubuntu-latest
     # Restrict to the repo that owns the package to avoid abuse if forks exist
-    if: github.repository == 'Omonire/Omonire-Limiter'
+    if: github.repository == 'Omonire-Great/Omonire-Limiter'
     steps:
       - uses: actions/checkout@v5
 
