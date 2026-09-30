@@ -13,8 +13,12 @@ jobs:
   publish:
     name: build and publish
     runs-on: ubuntu-latest
-    # Restrict to the repo that owns the package to avoid abuse if forks exist
-    if: github.repository == 'omonire-great/gromon-limiter'
+    # Restrict to the repo that owns the package to avoid abuse if forks exist.
+    # The comparison is a case-sensitive string match against github.repository,
+    # so the owner casing has to be GitHub's canonical 'Omonire-Great'. Lowercase
+    # 'omonire-great' resolves in a browser but fails this test, and the job then
+    # skips as a no-op rather than failing loudly.
+    if: github.repository == 'Omonire-Great/gromon-limiter'
     steps:
       - uses: actions/checkout@v5
 
