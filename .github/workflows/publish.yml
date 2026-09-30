@@ -19,6 +19,10 @@ jobs:
     # 'omonire-great' resolves in a browser but fails this test, and the job then
     # skips as a no-op rather than failing loudly.
     if: github.repository == 'Omonire-Great/gromon-limiter'
+    environment: pypi
+    permissions:
+      id-token: write  # Required for PyPI Trusted Publishing (OIDC)
+      contents: read
     steps:
       - uses: actions/checkout@v5
 
