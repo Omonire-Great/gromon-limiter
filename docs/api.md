@@ -3,10 +3,10 @@
 Everything public is importable from the package root:
 
 ```python
-from omonire_limiter import (
+from gromon_limiter import (
     AuthLimiter,          # Flask limiter for authentication endpoints
     Limiter,              # V2 general-purpose alias (see roadmap)
-    OmonireClient,      # V3 stub: raises NotImplementedError
+    GromonClient,      # V3 stub: raises NotImplementedError
     LimiterCore,        # framework-agnostic engine
     Decision,           # the result of one evaluation
     RateLimit,          # an immutable "<amount> per <window>" value
@@ -254,7 +254,7 @@ Helpers: `resolve_key_salt(explicit, *, storage_name)` and
 
 ```python
 storage = MemoryStorage(max_keys=100_000, clock=None)
-storage = RedisStorage(url=..., client=..., prefix="omonire_limiter", **client_kwargs)
+storage = RedisStorage(url=..., client=..., prefix="gromon_limiter", **client_kwargs)
 storage = build_storage("redis", url=..., client=...)
 ```
 
@@ -289,11 +289,11 @@ and `algorithm` are ignored: a policy declares its own per-rule limits, so
 layering a V1 limit on top would enforce something the policy never said.
 
 Introspection helpers: `view_limit(view)`, `view_algorithm(view)` and
-`view_policy(view)` from `omonire_limiter.decorators`.
+`view_policy(view)` from `gromon_limiter.decorators`.
 
 ---
 
-## Flask helpers (`omonire_limiter.flask`)
+## Flask helpers (`gromon_limiter.flask`)
 
 | Helper | Purpose |
 | --- | --- |
@@ -303,7 +303,7 @@ Introspection helpers: `view_limit(view)`, `view_algorithm(view)` and
 | `build_identity(account_fields, *, trusted_proxies=None, headers=None)` | build an `Identity` from the current request |
 | `current_decision()` | the `Decision` recorded for this request, if any |
 | `evaluator_for(limiter)` | the limiter's cached `PolicyEvaluator` |
-| `EXTENSION_KEY` | `"omonire_limiter"`, the `app.extensions` key |
+| `EXTENSION_KEY` | `"gromon_limiter"`, the `app.extensions` key |
 
 ---
 

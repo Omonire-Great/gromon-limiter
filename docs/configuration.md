@@ -15,7 +15,7 @@ Configuration is validated eagerly: bad values raise `ConfigurationError` (or
 | `storage` | `str \| Storage` | `"memory"` | `"memory"`, `"redis"`, or a built backend |
 | `storage_url` | `str \| None` | `None` | Redis URL when `storage="redis"` |
 | `redis_client` | `Any` | `None` | Existing `redis.Redis`, takes precedence over the URL |
-| `key_salt` | `str \| None` | `$OMONIRE_LIMITER_SECRET` | HMAC salt for identifier fingerprints |
+| `key_salt` | `str \| None` | `$GROMON_LIMITER_SECRET` | HMAC salt for identifier fingerprints |
 | `namespace` | `str` | `"auth"` | Key namespace; isolates limiters sharing one Redis |
 | `identifier` | `Iterable[str]` | `("ip", "account")` | Which independent budgets to keep |
 | `algorithm` | `str` | `"sliding_window"` | `"sliding_window"` or `"fixed_window"` |
@@ -132,7 +132,7 @@ AuthLimiter(app, storage="redis", redis_client=existing_pool)
 ```
 
 Resolution order: `redis_client` → `storage_url` → `REDIS_URL` from the
-environment. Missing all three is a `ConfigurationError`. `OMONIRE_LIMITER_SECRET`
+environment. Missing all three is a `ConfigurationError`. `GROMON_LIMITER_SECRET`
 must be set and identical everywhere.
 
 Extra keyword arguments are forwarded to `Redis.from_url`:
@@ -180,7 +180,7 @@ the proxy.
 
 | Variable | Used for |
 | --- | --- |
-| `OMONIRE_LIMITER_SECRET` | HMAC salt (required for Redis; at least 16 characters) |
+| `GROMON_LIMITER_SECRET` | HMAC salt (required for Redis; at least 16 characters) |
 | `REDIS_URL` | default Redis connection for `storage="redis"` |
 
 ```console
@@ -240,8 +240,8 @@ def sms(): ...
 
 | Message | Fix |
 | --- | --- |
-| `key salt must be at least 16 characters` | generate a longer `OMONIRE_LIMITER_SECRET` |
-| `OMONIRE_LIMITER_SECRET must be set when using redis storage` | set it, identically on every instance |
+| `key salt must be at least 16 characters` | generate a longer `GROMON_LIMITER_SECRET` |
+| `GROMON_LIMITER_SECRET must be set when using redis storage` | set it, identically on every instance |
 | `namespace must not contain whitespace` | use `"auth"` or `"auth-v2"` |
 | `unknown identifier(s): session` | use `ip`/`account`, or declare `extra_identifier_fields` |
 | `account_limit_multiplier must be >= 1` | a multiplier below 1 makes the account budget tighter than the IP budget |

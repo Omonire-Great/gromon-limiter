@@ -1,6 +1,6 @@
 # Architecture
 
-`omonire-limiter` is built as five layers. Each one only knows about the layer
+`gromon-limiter` is built as five layers. Each one only knows about the layer
 below it, which is what keeps the SDK usable on its own and makes a future
 framework adapter a small file instead of a rewrite.
 
@@ -9,13 +9,13 @@ framework adapter a small file instead of a rewrite.
         |  @limiter.limit("5/minute")
         v
 +-----------------------------------+
-| omonire_limiter.flask               |  identity extraction, 429 rendering,
-| omonire_limiter.decorators          |  response headers
+| gromon_limiter.flask               |  identity extraction, 429 rendering,
+| gromon_limiter.decorators          |  response headers
 +-----------------+-----------------+
                   |  Decision
                   v
 +-----------------------------------+
-| omonire_limiter.core.LimiterCore    |  rules, cooldowns, scoping,
+| gromon_limiter.core.LimiterCore    |  rules, cooldowns, scoping,
 |                                   |  fail-open / fail-closed
 +---------+-------------+-----------+
           |             |
@@ -36,10 +36,10 @@ framework adapter a small file instead of a rewrite.
 
 ## Why this shape
 
-- **The core does not import Flask.** `omonire_limiter.core` knows about limits,
+- **The core does not import Flask.** `gromon_limiter.core` knows about limits,
   identities, algorithms and storage, and nothing about HTTP. A Django, FastAPI
   or ASGI adapter is a request-parsing and response-rendering concern only.
-- **The core has no required dependencies.** `pip install omonire-limiter` pulls
+- **The core has no required dependencies.** `pip install gromon-limiter` pulls
   nothing in. Flask and redis-py are optional extras, imported lazily inside
   the functions that need them, so an application without Redis never imports
   `redis`.
@@ -83,7 +83,7 @@ Two details in that flow are load-bearing:
 A rule is a triple of (identifier, scope, limit). The storage key is:
 
 ```
-omonire_limiter:<namespace>:<algorithm>:<scope>:<hmac>
+gromon_limiter:<namespace>:<algorithm>:<scope>:<hmac>
 ```
 
 - `namespace` isolates one limiter from another, so several limiters (or
@@ -97,7 +97,7 @@ omonire_limiter:<namespace>:<algorithm>:<scope>:<hmac>
   not in the response. See [security.md](security.md).
 
 The prefix is composed by `storage_key_for` (see
-`omonire_limiter/algorithms/__init__.py`) and prefixed again by the storage
+`gromon_limiter/algorithms/__init__.py`) and prefixed again by the storage
 backend's own `prefix`, which exists so one Redis database can host unrelated
 installations of unrelated applications.
 
@@ -124,7 +124,7 @@ the same microsecond), so each member is `timestamp-random-prefix-counter`.
 
 ## Storage contract
 
-`Storage` (see `omonire_limiter/storage/base.py`) is six methods:
+`Storage` (see `gromon_limiter/storage/base.py`) is six methods:
 
 | Method | Contract |
 | --- | --- |
@@ -190,8 +190,8 @@ in under a second.
 
 | Goal | Where it goes |
 | --- | --- |
-| New framework | new `omonire_limiter/<framework>.py` beside `flask.py`, reusing `LimiterCore` |
+| New framework | new `gromon_limiter/<framework>.py` beside `flask.py`, reusing `LimiterCore` |
 | New storage backend | subclass `Storage`, implement six methods |
 | New algorithm | implement the `Algorithm` protocol, add to `ALGORITHMS` |
 | Different key scheme | override `LimiterCore.rule_key` / `storage_key` |
-| Central policy (V3) | a `Storage` whose backend is the Omonire backend service |
+| Central policy (V3) | a `Storage` whose backend is the Gromon backend service |

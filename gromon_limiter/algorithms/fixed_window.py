@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from omonire_limiter.algorithms import FixedWindow as _FixedWindow
+from gromon_limiter.algorithms import FixedWindow as _FixedWindow
 
 __all__ = ["FixedWindow"]
 

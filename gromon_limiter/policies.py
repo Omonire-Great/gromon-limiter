@@ -26,14 +26,14 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from omonire_limiter.errors import ConfigurationError
-from omonire_limiter.identifiers import (
+from gromon_limiter.errors import ConfigurationError
+from gromon_limiter.identifiers import (
     Identity,
     fingerprint,
     normalize_account,
     normalize_ip,
 )
-from omonire_limiter.limits import RateLimit
+from gromon_limiter.limits import RateLimit
 
 __all__ = [
     "KeyBuilder",

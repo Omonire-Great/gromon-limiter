@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import pytest
 
-from omonire_limiter.algorithms import (
+from gromon_limiter.algorithms import (
     ALGORITHMS,
     FixedWindow,
     SlidingWindow,
     get_algorithm,
     storage_key_for,
 )
-from omonire_limiter.errors import ConfigurationError
-from omonire_limiter.limits import RateLimit
-from omonire_limiter.storage.memory import MemoryStorage
+from gromon_limiter.errors import ConfigurationError
+from gromon_limiter.limits import RateLimit
+from gromon_limiter.storage.memory import MemoryStorage
 from tests.conftest import FakeClock
 
 
@@ -40,7 +40,7 @@ def test_get_algorithm_rejects_unknown_name() -> None:
 def test_storage_key_is_namespaced_and_distinct_per_algorithm() -> None:
     fixed = storage_key_for("auth", "fixed_window", "POST /login", "abc")
     sliding = storage_key_for("auth", "sliding_window", "POST /login", "abc")
-    assert fixed == "omonire_limiter:auth:fixed_window:POST /login:abc"
+    assert fixed == "gromon_limiter:auth:fixed_window:POST /login:abc"
     assert fixed != sliding
 
 

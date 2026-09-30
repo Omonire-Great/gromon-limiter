@@ -1,12 +1,12 @@
-"""Flask integration for :mod:`omonire_limiter`.
+"""Flask integration for :mod:`gromon_limiter`.
 
 This is the only module in the package that imports Flask. It does three things
-and delegates everything else to :class:`~omonire_limiter.core.LimiterCore`:
+and delegates everything else to :class:`~gromon_limiter.core.LimiterCore`:
 
-* build a validated :class:`~omonire_limiter.config.Settings` and attach the
+* build a validated :class:`~gromon_limiter.config.Settings` and attach the
   engine to ``app.extensions``;
 * resolve the request identity from Flask's cached request object;
-* convert a blocking :class:`~omonire_limiter.core.Decision` into a 429 JSON
+* convert a blocking :class:`~gromon_limiter.core.Decision` into a 429 JSON
   response and publish rate limit headers on allowed responses.
 
 The identity is read through ``request.get_json(silent=True)`` /
@@ -22,28 +22,28 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import replace
 from typing import Any
 
-from omonire_limiter.config import (
+from gromon_limiter.config import (
     ALGORITHM_NAMES,
     DEFAULT_ACCOUNT_FIELDS,
     Settings,
     normalise_proxies,
     resolve_key_salt,
 )
-from omonire_limiter.core import Decision, LimiterCore, build_body, build_headers
-from omonire_limiter.engine import PolicyEvaluator
-from omonire_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
-from omonire_limiter.identifiers import Identity, client_ip, normalize_account
-from omonire_limiter.limits import RateLimit
-from omonire_limiter.policies import Policy
-from omonire_limiter.storage import build_storage
-from omonire_limiter.storage.base import Storage
+from gromon_limiter.core import Decision, LimiterCore, build_body, build_headers
+from gromon_limiter.engine import PolicyEvaluator
+from gromon_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
+from gromon_limiter.identifiers import Identity, client_ip, normalize_account
+from gromon_limiter.limits import RateLimit
+from gromon_limiter.policies import Policy
+from gromon_limiter.storage import build_storage
+from gromon_limiter.storage.base import Storage
 
 try:  # pragma: no cover - exercised implicitly by every Flask test
     from flask import current_app, g, has_request_context, request
 except ImportError as exc:  # pragma: no cover - depends on environment
     raise ImportError(
         "Flask is required for the Flask integration; install it with "
-        "`pip install omonire-limiter[flask]`"
+        "`pip install gromon-limiter[flask]`"
     ) from exc
 
 __all__ = [
@@ -54,16 +54,16 @@ __all__ = [
     "resolve_limiter",
 ]
 
-logger = logging.getLogger("omonire_limiter")
+logger = logging.getLogger("gromon_limiter")
 
 #: Key under which the engine is stored in ``app.extensions``.
-EXTENSION_KEY = "omonire_limiter"
+EXTENSION_KEY = "gromon_limiter"
 
 #: Where the decorator stashes the decision so ``after_request`` can publish it.
-_DECISION_ATTR = "_omonire_limiter_decision"
+_DECISION_ATTR = "_gromon_limiter_decision"
 
 #: Where the decorator stashes the Flask config on first use, for introspection.
-_ROUTE_ATTR = "_omonire_limiter_limit"
+_ROUTE_ATTR = "_gromon_limiter_limit"
 
 #: Supplies authenticated identity material (user, tenant, api_key) for V2 rules.
 #: Called once per request, inside the request context, so it can read the
@@ -82,7 +82,7 @@ def resolve_limiter(app: Any) -> Any:
     limiter = _limiter_from(app)
     if limiter is None:
         raise ConfigurationError(
-            "omonire_limiter is not initialised on this app; call AuthLimiter(app) "
+            "gromon_limiter is not initialised on this app; call AuthLimiter(app) "
             "or limiter.init_app(app) before using the decorator"
         )
     return limiter
@@ -101,7 +101,7 @@ def build_identity(
     trusted_proxies: Any = None,
     headers: Any = None,
 ) -> Identity:
-    """Resolve the :class:`~omonire_limiter.identifiers.Identity` of this request.
+    """Resolve the :class:`~gromon_limiter.identifiers.Identity` of this request.
 
     ``headers`` defaults to ``request.headers``. It is a parameter so tests (and
     a future non-Flask adapter) can supply a plain mapping.
@@ -170,7 +170,7 @@ def _extras_for(limiter: Any) -> Identity | None:
     except Exception:
         # A provider that raises must not turn into a 500 on every request.
         logger.exception(
-            "omonire_limiter: extras provider raised; rules keyed on it are skipped "
+            "gromon_limiter: extras provider raised; rules keyed on it are skipped "
             "(namespace=%s)",
             getattr(limiter.settings, "namespace", "?"),
         )
@@ -294,7 +294,7 @@ def init_auth_limiter(
     """Build the engine and attach it to ``app``.
 
     Every knob is explicit; nothing is read from a global. The first argument is
-    the :class:`~omonire_limiter.AuthLimiter` instance being initialised, so
+    the :class:`~gromon_limiter.AuthLimiter` instance being initialised, so
     ``AuthLimiter(app)`` and ``AuthLimiter().init_app(app)`` behave identically.
     """
     if EXTENSION_KEY in app.extensions:
@@ -302,7 +302,7 @@ def init_auth_limiter(
         if existing is limiter:
             return app
         raise ConfigurationError(
-            "omonire_limiter is already initialised on this app. Constructing two "
+            "gromon_limiter is already initialised on this app. Constructing two "
             "limiters would count every request twice; reuse the existing one."
         )
 
@@ -382,7 +382,7 @@ def evaluate(
     and returning 429.
 
     A V2 ``policy`` on the route (or the limiter's default) is evaluated through
-    :class:`~omonire_limiter.engine.PolicyEvaluator` and takes precedence over the
+    :class:`~gromon_limiter.engine.PolicyEvaluator` and takes precedence over the
     V1 ``limit``/``algorithm`` arguments. The two models are alternatives, not a
     merge: a policy owns its own per-rule limits, so quietly applying ``limit`` on
     top of it would enforce something the policy never declared.
@@ -419,7 +419,7 @@ def evaluate(
     except StorageError:
         if not settings.fail_open:
             logger.exception(
-                "omonire_limiter: storage unavailable, failing closed (namespace=%s)",
+                "gromon_limiter: storage unavailable, failing closed (namespace=%s)",
                 settings.namespace,
             )
             decision = Decision(
@@ -432,7 +432,7 @@ def evaluate(
             )
         else:
             logger.warning(
-                "omonire_limiter: storage unavailable, allowing request "
+                "gromon_limiter: storage unavailable, allowing request "
                 "(fail_open=True, namespace=%s)",
                 settings.namespace,
             )

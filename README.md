@@ -1,29 +1,30 @@
-# Omonire Limiter
+# Gromon Limiter
 
 Rate limiting for authentication endpoints, built for the
-[Omonire](https://github.com/omonire) project.
+[Gromon](https://github.com/omonire-great) project.
 
-[![CI](https://github.com/Omonire-Great/Omonire-Limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/Omonire-Great/Omonire-Limiter/actions/workflows/ci.yml)
+[![CI](https://github.com/omonire-great/gromon-limiter/actions/workflows/ci.yml/badge.svg)](https://github.com/omonire-great/gromon-limiter/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-`omonire-limiter` answers one question on every request: *has this caller already
+`gromon-limiter` answers one question on every request: *has this caller already
 spent too many attempts, and if so, when may they try again?* It is deliberately
 small, framework-agnostic at the core, and explicit about the security
 decisions it makes.
 
-> **Renamed from `g3-limiter`.** The distribution is now `omonire-limiter` and
-> the import is now `omonire_limiter`. Rate-limiting, policy, storage and adapter
-> behaviour are unchanged, but four *stored or configured* names moved with the
-> brand: the `OMONIRE_LIMITER_SECRET` environment variable, the `omonire_limiter`
-> logger, the Redis key prefix (`omonire_limiter:…`), and the Flask
-> `app.extensions` key. Upgrading therefore resets live counters and requires the
-> salt variable to be renamed in your deployment. See
+> **Renamed from `omonire-limiter`** (itself previously `g3-limiter`). The
+> distribution is now `gromon-limiter` and the import is now `gromon_limiter`.
+> Rate-limiting, policy, storage and adapter behaviour are unchanged, but four
+> *stored or configured* names moved with the brand: the `GROMON_LIMITER_SECRET`
+> environment variable, the `gromon_limiter` logger, the Redis key prefix
+> (`gromon_limiter:…`), and the Flask `app.extensions` key. Upgrading therefore
+> resets live counters and requires the salt variable to be renamed in your
+> deployment. There are no back-compat aliases for the earlier names. See
 > [CHANGELOG.md](CHANGELOG.md) for the full list.
 
 ```python
 from flask import Flask, jsonify, request
-from omonire_limiter import AuthLimiter
+from gromon_limiter import AuthLimiter
 
 app = Flask(__name__)
 limiter = AuthLimiter(
@@ -73,18 +74,18 @@ There is no way to permanently lock an account. A cooldown always expires.
 ## Install
 
 ```console
-pip install omonire-limiter            # core engine, no dependencies
-pip install omonire-limiter[flask]     # Flask integration
-pip install omonire-limiter[redis]     # Redis storage
+pip install gromon-limiter            # core engine, no dependencies
+pip install gromon-limiter[flask]     # Flask integration
+pip install gromon-limiter[redis]     # Redis storage
 ```
 
 From a clone, `pip install -e ".[dev]"` gives you the editable install plus the
 test and lint tooling.
 
-`omonire-limiter` is not on PyPI yet, so the commands above will work once the
-first release under this name is published. Until then, install from a clone. The
-pre-rebrand `g3-limiter` 0.1.0 on PyPI is a different distribution name and will
-not pick up this release.
+`gromon-limiter` is not on PyPI yet, so the commands above will work once the
+first release under this name is published. Until then, install from a clone.
+Neither earlier name (`omonire-limiter`, `g3-limiter`) has a release on PyPI, so
+nothing resolves to a predecessor and there is no older release to shadow.
 
 Set a stable key salt whenever more than one process (or more than one restart)
 matters. Without it, memory storage generates a random one and warns; Redis
@@ -93,7 +94,7 @@ silently defeat every limit.
 
 ```console
 $ python -c "import secrets; print(secrets.token_urlsafe(32))"
-export OMONIRE_LIMITER_SECRET="the-value-you-generated"
+export GROMON_LIMITER_SECRET="the-value-you-generated"
 ```
 
 ## Using it
@@ -101,7 +102,7 @@ export OMONIRE_LIMITER_SECRET="the-value-you-generated"
 ### Flask (V1)
 
 ```python
-from omonire_limiter import AuthLimiter
+from gromon_limiter import AuthLimiter
 
 # Immediately, or later with AuthLimiter(limit=...).init_app(app).
 limiter = AuthLimiter(app, limit="10/minute", storage="redis")
@@ -121,7 +122,7 @@ registers the wrapper as the view.
 To render the error yourself instead of returning the built-in 429:
 
 ```python
-from omonire_limiter import RateLimitExceeded
+from gromon_limiter import RateLimitExceeded
 
 @app.post("/login")
 @limiter.limit("5/minute", raise_on_limit=True)
@@ -136,8 +137,8 @@ After a *successful* login, clear the caller's counters so their own typos (or
 someone else on the same NAT) do not accumulate:
 
 ```python
-from omonire_limiter import Identity
-from omonire_limiter.flask import current_limiter
+from gromon_limiter import Identity
+from gromon_limiter.flask import current_limiter
 
 limiter.reset(Identity(ip=..., account=...), path="/login", method="POST")
 ```
@@ -147,9 +148,9 @@ limiter.reset(Identity(ip=..., account=...), path="/login", method="POST")
 The engine has no web-framework dependency, so any stack can use it:
 
 ```python
-from omonire_limiter import LimiterCore, MemoryStorage
-from omonire_limiter.config import Settings, resolve_key_salt
-from omonire_limiter.identifiers import Identity
+from gromon_limiter import LimiterCore, MemoryStorage
+from gromon_limiter.config import Settings, resolve_key_salt
+from gromon_limiter.identifiers import Identity
 
 core = LimiterCore(
     Settings(
@@ -239,7 +240,7 @@ The design decisions and their reasoning are in
 pip install -e ".[dev]"
 python -m pytest -q          # full suite
 python -m pytest -q -m redis # storage tests (live Redis if REDIS_URL is set)
-python -m ruff check omonire_limiter tests
+python -m ruff check gromon_limiter tests
 python -m mypy
 ```
 
@@ -254,14 +255,13 @@ Deliberately incremental; each milestone is usable on its own.
 | --- | --- | --- |
 | V1 | Auth endpoint limiting, IP + account, cooldowns, memory/Redis, Flask | **done** |
 | V2 | General-purpose API limiter (`Limiter`), key builders, per-route policies | next |
-| V3 | Omonire backend service client: shared policy across services | planned |
+| V3 | Gromon backend service client: shared policy across services | planned |
 | V4 | Control plane: dashboard, metrics, rule management | planned |
 | V5 | Multi-region edge enforcement, SDKs, billing | planned |
 
-`Limiter` and `OmonireClient` are exported for forward compatibility. `Limiter` is
-currently a thin general-purpose alias of `AuthLimiter`; `OmonireClient` raises
-`NotImplementedError` until V3. Neither pretends to work. `G3Client` remains
-importable as an alias of `OmonireClient`.
+`Limiter` and `GromonClient` are exported for forward compatibility. `Limiter` is
+currently a thin general-purpose alias of `AuthLimiter`; `GromonClient` raises
+`NotImplementedError` until V3. Neither pretends to work.
 
 ## Licence
 

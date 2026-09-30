@@ -20,7 +20,7 @@ from typing import Any
 import pytest
 from flask import Flask, jsonify, request
 
-from omonire_limiter import (
+from gromon_limiter import (
     AuthLimiter,
     ConfigurationError,
     Identity,
@@ -33,10 +33,10 @@ from omonire_limiter import (
     by_user,
     fixed_cost,
 )
-from omonire_limiter.decorators import view_policy
-from omonire_limiter.errors import StorageError
-from omonire_limiter.flask import EXTENSION_KEY
-from omonire_limiter.storage.memory import MemoryStorage
+from gromon_limiter.decorators import view_policy
+from gromon_limiter.errors import StorageError
+from gromon_limiter.flask import EXTENSION_KEY
+from gromon_limiter.storage.memory import MemoryStorage
 from tests.conftest import TEST_SALT, FakeClock
 
 Builder = Callable[..., Limiter]
@@ -234,7 +234,7 @@ def test_denied_rule_label_reaches_the_body(clock: FakeClock) -> None:
 
 
 def test_raise_on_limit_works_with_a_policy(clock: FakeClock) -> None:
-    from omonire_limiter import RateLimitExceeded
+    from gromon_limiter import RateLimitExceeded
 
     policy = Policy(name="api", rules=(Rule(key=by_ip(), limit="1/minute", name="ip"),))
     app = Flask(__name__)
@@ -584,7 +584,7 @@ def test_fail_open_policy_allows_but_flags_storage_failure(clock: FakeClock) -> 
     @app.post("/api")
     @limiter.limit()
     def api() -> Any:
-        from omonire_limiter.flask import current_decision
+        from gromon_limiter.flask import current_decision
 
         decision = current_decision()
         seen.append(decision)
@@ -602,7 +602,7 @@ def test_a_policy_cannot_exceed_the_rule_safety_valve(clock: FakeClock) -> None:
     Enforced through the same Flask path a caller would actually use, so the
     guard cannot be bypassed by wiring the policy in a different way.
     """
-    from omonire_limiter import MAX_RULES_PER_POLICY
+    from gromon_limiter import MAX_RULES_PER_POLICY
 
     rules = tuple(
         Rule(key=by_ip(), limit="1000/minute", name=f"r{index}")

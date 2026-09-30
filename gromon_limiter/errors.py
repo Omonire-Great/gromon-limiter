@@ -1,4 +1,4 @@
-"""Exception hierarchy for :mod:`omonire_limiter`.
+"""Exception hierarchy for :mod:`gromon_limiter`.
 
 The classes are siblings rather than a single family: a configuration mistake
 (:class:`ConfigurationError`) is also a :class:`ValueError`, while a storage
@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    from omonire_limiter.core import Decision
+    from gromon_limiter.core import Decision
 
 __all__ = [
     "ConfigurationError",
@@ -41,7 +41,7 @@ class StorageError(Exception):
 class RateLimitExceeded(Exception):
     """Raised when a caller exceeds a limit and the limiter is in raising mode.
 
-    The full :class:`~omonire_limiter.core.Decision` is available on the exception
+    The full :class:`~gromon_limiter.core.Decision` is available on the exception
     so a custom error handler can render the correct status, ``Retry-After``
     value and payload without re-deriving anything.
     """

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from omonire_limiter.identifiers import (
+from gromon_limiter.identifiers import (
     Identity,
     TrustedProxies,
     client_ip,

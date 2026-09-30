@@ -1,8 +1,8 @@
 """The ``@limiter.limit(...)`` decorator.
 
 The decorator resolves identity, asks the engine for a decision, and either
-calls the view or returns 429. It works with :class:`~omonire_limiter.AuthLimiter`
-(V1) and with the general :class:`~omonire_limiter.Limiter` (V2), so the two
+calls the view or returns 429. It works with :class:`~gromon_limiter.AuthLimiter`
+(V1) and with the general :class:`~gromon_limiter.Limiter` (V2), so the two
 milestones share one implementation.
 
 Ordering matters and is a common source of confusion:
@@ -23,9 +23,9 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar
 
-from omonire_limiter.errors import ConfigurationError, RateLimitExceeded
-from omonire_limiter.limits import RateLimit
-from omonire_limiter.policies import Policy
+from gromon_limiter.errors import ConfigurationError, RateLimitExceeded
+from gromon_limiter.limits import RateLimit
+from gromon_limiter.policies import Policy
 
 __all__ = ["limit", "view_algorithm", "view_limit", "view_policy"]
 
@@ -46,7 +46,7 @@ def limit(
     Parameters
     ----------
     limiter:
-        An initialised :class:`~omonire_limiter.AuthLimiter` (or ``Limiter``).
+        An initialised :class:`~gromon_limiter.AuthLimiter` (or ``Limiter``).
     limit_spec:
         Overrides the limiter's default limit for this route only, e.g.
         ``"5/minute"``. Omit it to use the configured default.
@@ -57,11 +57,11 @@ def limit(
         evaluated inside the request context. Rarely needed; the limiter's
         ``scope`` setting is the normal control.
     raise_on_limit:
-        Raise :class:`~omonire_limiter.RateLimitExceeded` instead of returning a
+        Raise :class:`~gromon_limiter.RateLimitExceeded` instead of returning a
         429 response, so a project can centralise error handling in one
         ``@app.errorhandler``.
     policy:
-        A V2 :class:`~omonire_limiter.Policy` governing this route. When given it
+        A V2 :class:`~gromon_limiter.Policy` governing this route. When given it
         takes precedence over ``limit_spec`` and ``algorithm``: a policy declares
         its own per-rule limits, and layering the V1 limit on top would enforce
         something the policy never said.
@@ -77,7 +77,7 @@ def limit(
     def decorator(view: F) -> F:
         @wraps(view)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            from omonire_limiter import flask as gl
+            from gromon_limiter import flask as gl
 
             if limiter.core_or_none() is None:
                 raise ConfigurationError(
@@ -115,9 +115,9 @@ def limit(
 
 
 #: Attributes used to introspect a view's configuration.
-_ROUTE_LIMIT_ATTR = "_omonire_limiter_limit"
-_ROUTE_ALGORITHM_ATTR = "_omonire_limiter_algorithm"
-_ROUTE_POLICY_ATTR = "_omonire_limiter_policy"
+_ROUTE_LIMIT_ATTR = "_gromon_limiter_limit"
+_ROUTE_ALGORITHM_ATTR = "_gromon_limiter_algorithm"
+_ROUTE_POLICY_ATTR = "_gromon_limiter_policy"
 
 
 def view_limit(view: Any) -> str | RateLimit | None:

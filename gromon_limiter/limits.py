@@ -12,7 +12,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from omonire_limiter.errors import InvalidLimitError
+from gromon_limiter.errors import InvalidLimitError
 
 __all__ = ["RateLimit"]
 

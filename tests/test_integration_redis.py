@@ -14,11 +14,11 @@ from collections.abc import Iterator
 import pytest
 import redis
 
-from omonire_limiter import AuthLimiter
-from omonire_limiter.config import Settings
-from omonire_limiter.core import LimiterCore
-from omonire_limiter.identifiers import Identity
-from omonire_limiter.storage.redis import RedisStorage
+from gromon_limiter import AuthLimiter
+from gromon_limiter.config import Settings
+from gromon_limiter.core import LimiterCore
+from gromon_limiter.identifiers import Identity
+from gromon_limiter.storage.redis import RedisStorage
 
 pytestmark = pytest.mark.redis
 
@@ -29,7 +29,7 @@ def _client() -> redis.Redis:
         client = redis.Redis.from_url(url, decode_responses=True)
         client.ping()
         return client
-    if __import__("os").environ.get("OMONIRE_LIMITER_FAKE_REDIS", "1") == "0":
+    if __import__("os").environ.get("GROMON_LIMITER_FAKE_REDIS", "1") == "0":
         pytest.skip("no Redis available")
     fakeredis = pytest.importorskip("fakeredis")
     return fakeredis.FakeStrictRedis(decode_responses=True)
@@ -42,7 +42,7 @@ def namespace() -> str:
 
 @pytest.fixture
 def core(namespace: str) -> Iterator[LimiterCore]:
-    storage = RedisStorage(client=_client(), prefix="omonire_limiter")
+    storage = RedisStorage(client=_client(), prefix="gromon_limiter")
     settings = Settings(
         key_salt="integration-salt-not-secret",
         namespace=namespace,
@@ -131,7 +131,7 @@ def test_weighted_cost_is_atomic_across_engines(namespace: str) -> None:
         identifier=("ip",),
     ).validated()
     engines = [
-        LimiterCore(settings, RedisStorage(client=client, prefix="omonire_limiter"))
+        LimiterCore(settings, RedisStorage(client=client, prefix="gromon_limiter"))
         for _ in range(4)
     ]
     identity = Identity(ip="7.7.7.7")
@@ -151,11 +151,11 @@ def test_weighted_cost_is_atomic_across_engines(namespace: str) -> None:
 
 def test_weighted_policy_rules_on_redis(namespace: str) -> None:
     """A V2 policy with a weighted rule behaves the same on a shared backend."""
-    from omonire_limiter.engine import PolicyEvaluator
-    from omonire_limiter.policies import KeyBuilder, Policy, Rule, by_user
+    from gromon_limiter.engine import PolicyEvaluator
+    from gromon_limiter.policies import KeyBuilder, Policy, Rule, by_user
 
     client = _client()
-    storage = RedisStorage(client=client, prefix="omonire_limiter")
+    storage = RedisStorage(client=client, prefix="gromon_limiter")
     engine = LimiterCore(
         Settings(key_salt="v2-redis-salt", namespace=namespace).validated(), storage
     )
@@ -205,7 +205,7 @@ def test_many_engines_share_one_limiter(namespace: str) -> None:
         key_salt=salt, namespace=namespace, default_limit="50/minute", identifier=("ip",)
     ).validated()
     engines = [
-        LimiterCore(settings, RedisStorage(client=client, prefix="omonire_limiter"))
+        LimiterCore(settings, RedisStorage(client=client, prefix="gromon_limiter"))
         for _ in range(4)
     ]
     identity = Identity(ip="9.9.9.9")
@@ -234,7 +234,7 @@ def test_concurrent_requests_never_exceed_the_limit(namespace: str) -> None:
         default_limit="100/minute",
         identifier=("ip",),
     ).validated()
-    storage = RedisStorage(client=client, prefix="omonire_limiter")
+    storage = RedisStorage(client=client, prefix="gromon_limiter")
     engine = LimiterCore(settings, storage)
     identity = Identity(ip="8.8.8.8")
     threads = 8
@@ -276,7 +276,7 @@ def test_flask_app_on_redis(namespace: str) -> None:
     limiter = AuthLimiter(
         app,
         limit="2/minute",
-        storage=RedisStorage(client=client, prefix="omonire_limiter"),
+        storage=RedisStorage(client=client, prefix="gromon_limiter"),
         namespace=namespace,
         key_salt="flask-redis-salt",
     )

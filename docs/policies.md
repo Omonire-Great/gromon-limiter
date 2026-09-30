@@ -11,7 +11,7 @@ the clock needed to evaluate rules on the same time source.
 ## Policy and rule
 
 ```python
-from omonire_limiter import Limiter, Policy, Rule, by_ip, by_user, fixed_cost
+from gromon_limiter import Limiter, Policy, Rule, by_ip, by_user, fixed_cost
 
 policy = Policy(
     name="admin",
@@ -21,7 +21,7 @@ policy = Policy(
     ),
 )
 
-limiter = Limiter.for_policy(policy, app, key_salt=os.environ["OMONIRE_LIMITER_SECRET"])
+limiter = Limiter.for_policy(policy, app, key_salt=os.environ["GROMON_LIMITER_SECRET"])
 ```
 
 See [Binding a policy to Flask](#binding-a-policy-to-flask) for the full wiring
@@ -74,7 +74,7 @@ and configures the limiter in one call:
 
 ```python
 from flask import Flask, request, session
-from omonire_limiter import Limiter, Policy, Rule, by_ip, by_user
+from gromon_limiter import Limiter, Policy, Rule, by_ip, by_user
 
 app = Flask(__name__)
 
@@ -93,7 +93,7 @@ def extras() -> dict[str, str]:
 limiter = Limiter.for_policy(
     policy,
     app,
-    key_salt=os.environ["OMONIRE_LIMITER_SECRET"],
+    key_salt=os.environ["GROMON_LIMITER_SECRET"],
     extras_provider=extras,   # this is what makes by_user() enforceable
 )
 
@@ -162,7 +162,7 @@ Outside Flask, `PolicyEvaluator` is the entry point. It holds one `LimiterCore`
 and derives a narrow engine view per rule.
 
 ```python
-from omonire_limiter.engine import PolicyEvaluator
+from gromon_limiter.engine import PolicyEvaluator
 
 evaluator = PolicyEvaluator(limiter.core)
 verdict = evaluator.check(policy, identity, path="/admin/refunds", method="POST")

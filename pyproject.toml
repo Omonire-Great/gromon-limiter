@@ -3,15 +3,15 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "omonire-limiter"
+name = "gromon-limiter"
 version = "1.0.0"
 description = "Auth-endpoint rate limiting for Python apps with IP + account awareness, cooldowns and pluggable storage."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-authors = [{ name = "omonire" }]
-keywords = ["rate-limit", "brute-force", "security", "flask", "redis", "auth", "omonire"]
+authors = [{ name = "gromon" }]
+keywords = ["rate-limit", "brute-force", "security", "flask", "redis", "auth", "gromon"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -46,17 +46,17 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Omonire-Great/Omonire-Limiter"
-Documentation = "https://github.com/Omonire-Great/Omonire-Limiter#readme"
-Source = "https://github.com/Omonire-Great/Omonire-Limiter"
-Issues = "https://github.com/Omonire-Great/Omonire-Limiter/issues"
-Changelog = "https://github.com/Omonire-Great/Omonire-Limiter/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/omonire-great/gromon-limiter"
+Documentation = "https://github.com/omonire-great/gromon-limiter#readme"
+Source = "https://github.com/omonire-great/gromon-limiter"
+Issues = "https://github.com/omonire-great/gromon-limiter/issues"
+Changelog = "https://github.com/omonire-great/gromon-limiter/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
-include = ["omonire_limiter*"]
+include = ["gromon_limiter*"]
 
 [tool.setuptools.package-data]
-omonire_limiter = ["py.typed"]
+gromon_limiter = ["py.typed"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -64,7 +64,7 @@ testpaths = ["tests"]
 markers = [
     "redis: storage tests; use a live Redis by setting REDIS_URL, otherwise fakeredis",
 ]
-filterwarnings = ["error::DeprecationWarning:omonire_limiter.*"]
+filterwarnings = ["error::DeprecationWarning:gromon_limiter.*"]
 
 [tool.ruff]
 line-length = 100
@@ -74,11 +74,11 @@ target-version = "py310"
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["omonire_limiter"]
+known-first-party = ["gromon_limiter"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["omonire_limiter"]
+files = ["gromon_limiter"]
 strict = true
 warn_unreachable = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]

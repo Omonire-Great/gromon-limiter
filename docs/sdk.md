@@ -1,16 +1,16 @@
 # SDK guide
 
-In V1 the "SDK" is the Python package itself. The hosted Omonire backend client
-(`OmonireClient`) arrives in V3; see [roadmap.md](roadmap.md). Nothing in this
+In V1 the "SDK" is the Python package itself. The hosted Gromon backend client
+(`GromonClient`) arrives in V3; see [roadmap.md](roadmap.md). Nothing in this
 document requires an account or a network call — the library is fully usable on
 its own, which is the point of splitting the SDK from the service.
 
 ## Install
 
 ```console
-pip install omonire-limiter
-pip install omonire-limiter[flask]   # Flask integration
-pip install omonire-limiter[redis]   # Redis storage
+pip install gromon-limiter
+pip install gromon-limiter[flask]   # Flask integration
+pip install gromon-limiter[redis]   # Redis storage
 ```
 
 Python 3.10+. The core has no runtime dependencies.
@@ -23,7 +23,7 @@ The shortest path. The limiter runs before the view, so a blocked request never
 reaches the password check.
 
 ```python
-from omonire_limiter import AuthLimiter
+from gromon_limiter import AuthLimiter
 
 limiter = AuthLimiter(app, limit="10/minute", storage="redis")
 
@@ -38,8 +38,8 @@ Useful for endpoints that are not simple views, for background jobs, or for
 applying the same policy in a non-HTTP code path.
 
 ```python
-from omonire_limiter import Identity
-from omonire_limiter.flask import current_limiter, current_decision
+from gromon_limiter import Identity
+from gromon_limiter.flask import current_limiter, current_decision
 
 limiter = current_limiter()
 identity = Identity(ip=resolve_client_ip(request), account=payload["email"])
@@ -57,8 +57,8 @@ without re-deriving them.
 No Flask at all — for CLI tools, workers, or a future framework adapter.
 
 ```python
-from omonire_limiter import LimiterCore, MemoryStorage, Identity
-from omonire_limiter.config import Settings, resolve_key_salt
+from gromon_limiter import LimiterCore, MemoryStorage, Identity
+from gromon_limiter.config import Settings, resolve_key_salt
 
 core = LimiterCore(
     Settings(
@@ -80,8 +80,8 @@ compiles the proxy list, so doing it per request wastes work:
 
 ```python
 # limits.py
-from omonire_limiter import LimiterCore, MemoryStorage
-from omonire_limiter.config import Settings, resolve_key_salt
+from gromon_limiter import LimiterCore, MemoryStorage
+from gromon_limiter.config import Settings, resolve_key_salt
 
 core = LimiterCore(
     Settings(key_salt=resolve_key_salt(None, storage_name="memory"), default_limit="5/minute"),
@@ -92,7 +92,7 @@ core = LimiterCore(
 ```python
 # views.py
 from limits import core
-from omonire_limiter import Identity
+from gromon_limiter import Identity
 
 def guard(request) -> None:
     if not core.check(Identity(ip=request.remote_addr), path=request.path, method=request.method).allowed:
@@ -104,13 +104,13 @@ def guard(request) -> None:
 Three small pieces, all of them thin:
 
 1. **Resolve the identity** into `Identity(ip=..., account=...)`. Use
-   `omonire_limiter.identifiers.client_ip` so proxy handling stays correct.
+   `gromon_limiter.identifiers.client_ip` so proxy handling stays correct.
 2. **Call `core.check(...)`** with the request's path and method.
 3. **Render the outcome**: return your framework's 429 response with
    `build_body(decision)` and `build_headers(decision)`.
 
 ```python
-from omonire_limiter import build_body, build_headers
+from gromon_limiter import build_body, build_headers
 
 if not decision.allowed:
     return JsonResponse(
@@ -129,7 +129,7 @@ Implement six methods (see [architecture.md](architecture.md#storage-contract)).
 read or write.
 
 ```python
-from omonire_limiter.storage.base import CounterState, Storage
+from gromon_limiter.storage.base import CounterState, Storage
 
 class MyStorage(Storage):
     name = "mine"
@@ -146,19 +146,19 @@ class MyStorage(Storage):
 ```
 
 Backends with `shared = True` are required by `resolve_key_salt` to have an
-explicit `OMONIRE_LIMITER_SECRET`, since per-process salts would break them.
+explicit `GROMON_LIMITER_SECRET`, since per-process salts would break them.
 
 Pass an instance straight through:
 
 ```python
-AuthLimiter(app, storage=MyStorage(...), key_salt=os.environ["OMONIRE_LIMITER_SECRET"])
+AuthLimiter(app, storage=MyStorage(...), key_salt=os.environ["GROMON_LIMITER_SECRET"])
 ```
 
 ## Writing an algorithm
 
 ```python
-from omonire_limiter.algorithms import ALGORITHMS, get_algorithm, storage_key_for
-from omonire_limiter.errors import ConfigurationError
+from gromon_limiter.algorithms import ALGORITHMS, get_algorithm, storage_key_for
+from gromon_limiter.errors import ConfigurationError
 
 class TokenBucket:
     name = "token_bucket"
@@ -173,7 +173,7 @@ class TokenBucket:
 ALGORITHMS[TokenBucket.name] = TokenBucket()
 ```
 
-Then add `"token_bucket"` to `ALGORITHM_NAMES` in `omonire_limiter/config.py` so
+Then add `"token_bucket"` to `ALGORITHM_NAMES` in `gromon_limiter/config.py` so
 configuration validation accepts it, and use
 `@limiter.limit(..., algorithm="token_bucket")`.
 
@@ -187,8 +187,8 @@ unix timestamp or `None`.
 tested without sleeping:
 
 ```python
-from omonire_limiter import LimiterCore, MemoryStorage, Identity
-from omonire_limiter.config import Settings
+from gromon_limiter import LimiterCore, MemoryStorage, Identity
+from gromon_limiter.config import Settings
 
 now = [1_700_000_000.0]
 core = LimiterCore(
@@ -218,6 +218,6 @@ control plane.
 
 ## Versioning
 
-`0.1.x` corresponds to V1. Public names in `omonire_limiter.__all__` are stable
+`0.1.x` corresponds to V1. Public names in `gromon_limiter.__all__` are stable
 within a milestone. Settings are keyword-only and additive: new options appear
 with defaults that preserve current behaviour.

@@ -27,13 +27,13 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from omonire_limiter.algorithms import NAMESPACE as KEY_NAMESPACE
-from omonire_limiter.algorithms import get_algorithm, storage_key_for
-from omonire_limiter.config import Settings
-from omonire_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
-from omonire_limiter.identifiers import Identity, TrustedProxies, fingerprint
-from omonire_limiter.limits import RateLimit
-from omonire_limiter.storage.base import Storage
+from gromon_limiter.algorithms import NAMESPACE as KEY_NAMESPACE
+from gromon_limiter.algorithms import get_algorithm, storage_key_for
+from gromon_limiter.config import Settings
+from gromon_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
+from gromon_limiter.identifiers import Identity, TrustedProxies, fingerprint
+from gromon_limiter.limits import RateLimit
+from gromon_limiter.storage.base import Storage
 
 __all__ = [
     "Decision",
@@ -152,7 +152,7 @@ class LimiterCore:
     settings:
         Validated configuration (namespace, identifiers, cooldowns, ...).
     storage:
-        A :class:`~omonire_limiter.storage.base.Storage` backend.
+        A :class:`~gromon_limiter.storage.base.Storage` backend.
     clock:
         Time source, injectable so tests can advance time deterministically
         instead of sleeping.

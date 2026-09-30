@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from omonire_limiter.errors import InvalidLimitError
-from omonire_limiter.limits import RateLimit
+from gromon_limiter.errors import InvalidLimitError
+from gromon_limiter.limits import RateLimit
 
 
 @pytest.mark.parametrize(

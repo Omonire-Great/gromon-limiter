@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from omonire_limiter import ConfigurationError
-from omonire_limiter.identifiers import Identity
-from omonire_limiter.limits import RateLimit
-from omonire_limiter.policies import (
+from gromon_limiter import ConfigurationError
+from gromon_limiter.identifiers import Identity
+from gromon_limiter.limits import RateLimit
+from gromon_limiter.policies import (
     KeyBuilder,
     Policy,
     Rule,

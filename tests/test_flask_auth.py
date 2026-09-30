@@ -9,10 +9,10 @@ from typing import Any
 import pytest
 from flask import Flask, jsonify, request
 
-from omonire_limiter import AuthLimiter, Limiter
-from omonire_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
-from omonire_limiter.flask import EXTENSION_KEY
-from omonire_limiter.storage.memory import MemoryStorage
+from gromon_limiter import AuthLimiter, Limiter
+from gromon_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
+from gromon_limiter.flask import EXTENSION_KEY
+from gromon_limiter.storage.memory import MemoryStorage
 from tests.conftest import TEST_SALT, FakeClock
 
 Factory = Callable[..., Flask]
@@ -378,7 +378,7 @@ def test_raise_on_limit_uses_error_handler(make_app: Factory) -> None:
 
 def test_success_resets_counters(make_app: Factory) -> None:
     """A successful login clears the counters for that identity."""
-    from omonire_limiter.identifiers import Identity
+    from gromon_limiter.identifiers import Identity
 
     app = make_app(limit="2/minute", identifier=("ip", "account"))
     limiter = app.extensions[EXTENSION_KEY]
@@ -400,7 +400,7 @@ def test_success_resets_counters(make_app: Factory) -> None:
 
 
 def test_reset_helper_is_exposed_on_the_limiter(make_app: Factory) -> None:
-    from omonire_limiter.identifiers import Identity
+    from gromon_limiter.identifiers import Identity
 
     app = make_app(limit="1/minute", identifier=("ip",))
     limiter = app.extensions[EXTENSION_KEY]

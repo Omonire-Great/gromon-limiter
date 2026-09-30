@@ -2,7 +2,7 @@
 
 Run it directly::
 
-    export OMONIRE_LIMITER_SECRET="$(python -c \
+    export GROMON_LIMITER_SECRET="$(python -c \
 'import secrets; print(secrets.token_urlsafe(32))')"
     python examples/flask_app.py
 
@@ -27,13 +27,13 @@ import os
 
 from flask import Flask, jsonify, request
 
-from omonire_limiter import AuthLimiter, RateLimitExceeded
-from omonire_limiter.flask import current_limiter
+from gromon_limiter import AuthLimiter, RateLimitExceeded
+from gromon_limiter.flask import current_limiter
 
 # Change this: it decides how identifiers are fingerprinted, so counters written
 # with one salt cannot be read with another.
 os.environ.setdefault(
-    "OMONIRE_LIMITER_SECRET",
+    "GROMON_LIMITER_SECRET",
     "example-only-secret-change-me-in-production"
 )
 
@@ -87,7 +87,7 @@ def sms_code() -> tuple[dict[str, object], int]:
 @app.get("/me")
 def me() -> dict[str, object]:
     """The current decision is available for logging, never for raw identifiers."""
-    from omonire_limiter.flask import current_decision
+    from gromon_limiter.flask import current_decision
 
     decision = current_decision()
     return jsonify(

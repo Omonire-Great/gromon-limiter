@@ -10,10 +10,10 @@ from __future__ import annotations
 import os
 from typing import Any, Literal
 
-from omonire_limiter.errors import ConfigurationError
-from omonire_limiter.storage.base import CounterState, Storage
-from omonire_limiter.storage.memory import MemoryStorage
-from omonire_limiter.storage.redis import RedisStorage
+from gromon_limiter.errors import ConfigurationError
+from gromon_limiter.storage.base import CounterState, Storage
+from gromon_limiter.storage.memory import MemoryStorage
+from gromon_limiter.storage.redis import RedisStorage
 
 __all__ = [
     "CounterState",
@@ -31,7 +31,7 @@ def build_storage(
     *,
     url: str | None = None,
     client: Any = None,
-    prefix: str = "omonire_limiter",
+    prefix: str = "gromon_limiter",
 ) -> Storage:
     """Build a storage backend by name.
 

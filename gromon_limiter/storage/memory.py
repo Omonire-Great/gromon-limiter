@@ -12,7 +12,7 @@ import time
 from bisect import bisect_left, bisect_right
 from collections.abc import Callable
 
-from omonire_limiter.storage.base import CounterState, Storage
+from gromon_limiter.storage.base import CounterState, Storage
 
 __all__ = ["MemoryStorage"]
 
