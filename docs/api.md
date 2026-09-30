@@ -3,18 +3,18 @@
 Everything public is importable from the package root:
 
 ```python
-from g3_limiter import (
+from omonire_limiter import (
     AuthLimiter,          # Flask limiter for authentication endpoints
     Limiter,              # V2 general-purpose alias (see roadmap)
-    G3Client,          # V3 stub: raises NotImplementedError
-    LimiterCore,          # framework-agnostic engine
-    Decision,             # the result of one evaluation
-    RateLimit,            # an immutable "<amount> per <window>" value
-    Identity,             # resolved identity of one request
+    OmonireClient,      # V3 stub: raises NotImplementedError
+    LimiterCore,        # framework-agnostic engine
+    Decision,           # the result of one evaluation
+    RateLimit,          # an immutable "<amount> per <window>" value
+    Identity,           # resolved identity of one request
     Storage, CounterState, MemoryStorage, RedisStorage,
     build_headers, build_payload, build_body,
     client_ip, TrustedProxies,
-    G3LimiterError, ConfigurationError, InvalidLimitError,
+    ConfigurationError, InvalidLimitError,
     RateLimitExceeded, StorageError,
 )
 ```
@@ -205,7 +205,7 @@ Helpers: `resolve_key_salt(explicit, *, storage_name)` and
 
 ```python
 storage = MemoryStorage(max_keys=100_000, clock=None)
-storage = RedisStorage(url=..., client=..., prefix="g3_limiter", **client_kwargs)
+storage = RedisStorage(url=..., client=..., prefix="omonire_limiter", **client_kwargs)
 storage = build_storage("redis", url=..., client=...)
 ```
 
@@ -235,11 +235,11 @@ closes a client it created on exit.
 at decoration time, not on the first request.
 
 Introspection helpers: `view_limit(view)` and `view_algorithm(view)` from
-`g3_limiter.decorators`.
+`omonire_limiter.decorators`.
 
 ---
 
-## Flask helpers (`g3_limiter.flask`)
+## Flask helpers (`omonire_limiter.flask`)
 
 | Helper | Purpose |
 | --- | --- |
@@ -248,20 +248,21 @@ Introspection helpers: `view_limit(view)` and `view_algorithm(view)` from
 | `resolve_limiter(app)` | the limiter registered on an app, or `ConfigurationError` |
 | `build_identity(account_fields, *, trusted_proxies=None, headers=None)` | build an `Identity` from the current request |
 | `current_decision()` | the `Decision` recorded for this request, if any |
-| `EXTENSION_KEY` | `"g3_limiter"`, the `app.extensions` key |
+| `EXTENSION_KEY` | `"omonire_limiter"`, the `app.extensions` key |
 
 ---
 
 ## Errors
 
 ```
-G3LimiterError
-├── ConfigurationError (also a ValueError)
-│   └── InvalidLimitError
-├── StorageError
-└── RateLimitExceeded      .decision -> Decision
+ConfigurationError (also a ValueError)
+└── InvalidLimitError
+
+StorageError
+RateLimitExceeded      .decision -> Decision
 ```
 
+There is no single base class: catch the specific error you can act on.
 `ConfigurationError` is raised at start-up. `StorageError` is raised at request
 time and translated into a 429 by the Flask layer when `fail_open=False`.
 `RateLimitExceeded` carries the `Decision` so an error handler does not have to

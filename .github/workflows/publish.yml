@@ -14,7 +14,7 @@ jobs:
     name: build and publish
     runs-on: ubuntu-latest
     # Restrict to the repo that owns the package to avoid abuse if forks exist
-    if: github.repository == 'Omonire/g3-limiter'
+    if: github.repository == 'Omonire/Omonire-Limiter'
     steps:
       - uses: actions/checkout@v5
 
@@ -39,7 +39,7 @@ jobs:
       # Trusted publishing (OIDC) cannot create a project: a PyPI project only
       # comes into existence through an upload, and a publisher cannot be
       # registered against a name that does not exist yet. So the very first
-      # release of g3-limiter needs a one-off token, supplied as the
+      # release of omonire-limiter needs a one-off token, supplied as the
       # PYPI_API_TOKEN secret. An unset secret expands to an empty string, which
       # the action treats as absent and falls back to OIDC, so once a trusted
       # publisher is registered on PyPI this step needs no credential at all.

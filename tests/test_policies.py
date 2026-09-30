@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from g3_limiter import ConfigurationError
-from g3_limiter.identifiers import Identity
-from g3_limiter.limits import RateLimit
-from g3_limiter.policies import (
+from omonire_limiter import ConfigurationError
+from omonire_limiter.identifiers import Identity
+from omonire_limiter.limits import RateLimit
+from omonire_limiter.policies import (
     KeyBuilder,
     Policy,
     Rule,

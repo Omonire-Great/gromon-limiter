@@ -11,3 +11,7 @@ venv/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Local notes for the maintainer; never committed.
+updates.md
+report.html

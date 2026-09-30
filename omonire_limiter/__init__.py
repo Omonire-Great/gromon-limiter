@@ -2,7 +2,7 @@
 
 The package exposes a small, explicit API: :class:`AuthLimiter` is the entry
 point for authentication endpoints (V1), :class:`Limiter` is general purpose
-(V2), and :class:`G3Client` is the SaaS client stub (present but not yet
+(V2), and :class:`OmonireClient` is the SaaS client stub (present but not yet
 implemented in full, to keep the scope to V1). Every symbol here is considered
 stable within its milestone.
 """
@@ -11,28 +11,27 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from g3_limiter.core import (
+from omonire_limiter.core import (
     Decision,
     LimiterCore,
     build_body,
     build_headers,
     build_payload,
 )
-from g3_limiter.engine import (
+from omonire_limiter.engine import (
     MAX_RULES_PER_POLICY,
     PolicyEvaluator,
     PolicyVerdict,
 )
-from g3_limiter.errors import (
+from omonire_limiter.errors import (
     ConfigurationError,
-    G3LimiterError,
     InvalidLimitError,
     RateLimitExceeded,
     StorageError,
 )
-from g3_limiter.identifiers import Identity, TrustedProxies, client_ip
-from g3_limiter.limits import RateLimit
-from g3_limiter.policies import (
+from omonire_limiter.identifiers import Identity, TrustedProxies, client_ip
+from omonire_limiter.limits import RateLimit
+from omonire_limiter.policies import (
     KeyBuilder,
     Policy,
     Rule,
@@ -45,14 +44,14 @@ from g3_limiter.policies import (
     compose_key,
     fixed_cost,
 )
-from g3_limiter.storage.base import CounterState, Storage
-from g3_limiter.storage.memory import MemoryStorage
-from g3_limiter.storage.redis import RedisStorage
+from omonire_limiter.storage.base import CounterState, Storage
+from omonire_limiter.storage.memory import MemoryStorage
+from omonire_limiter.storage.redis import RedisStorage
 
 if TYPE_CHECKING:  # pragma: no cover - only needed by type checkers
     from flask import Flask
 
-    from g3_limiter.config import Settings
+    from omonire_limiter.config import Settings
 
 __all__ = [
     "MAX_RULES_PER_POLICY",
@@ -60,14 +59,13 @@ __all__ = [
     "ConfigurationError",
     "CounterState",
     "Decision",
-    "G3Client",
-    "G3LimiterError",
     "Identity",
     "InvalidLimitError",
     "KeyBuilder",
     "Limiter",
     "LimiterCore",
     "MemoryStorage",
+    "OmonireClient",
     "Policy",
     "PolicyEvaluator",
     "PolicyVerdict",
@@ -133,7 +131,7 @@ class AuthLimiter:
         Called without ``app`` the arguments are only stored, for a later
         ``init_app(app)`` call.
         """
-        from g3_limiter.flask import init_auth_limiter
+        from omonire_limiter.flask import init_auth_limiter
 
         if app is None:
             self._kwargs.update(kwargs)
@@ -169,7 +167,7 @@ class AuthLimiter:
         Called without an argument the limiter's configured default applies;
         pass a string such as ``"5/minute"`` to override it for one route.
         """
-        from g3_limiter.decorators import limit as _limit
+        from omonire_limiter.decorators import limit as _limit
 
         return _limit(self, limit, **options)
 
@@ -196,7 +194,7 @@ class Limiter(AuthLimiter):
     non-auth endpoints. Backward compatibility with V1 is preserved by
     inheritance: existing code using ``AuthLimiter`` continues to work.
 
-    V2 adds the declarative model in :mod:`g3_limiter.policies`: a
+    V2 adds the declarative model in :mod:`omonire_limiter.policies`: a
     :class:`Policy` of :class:`Rule` objects, each with its own
     :class:`KeyBuilder`, limit and optional cost. Adapters bind a policy to a
     route and evaluate every rule, allowing a request only when all of them do.
@@ -228,8 +226,8 @@ class Limiter(AuthLimiter):
 # ---------------------------------------------------------------- V3/V5 stub
 
 
-class G3Client:
-    """Client stub for the hosted G3 backend (V3+).
+class OmonireClient:
+    """Client stub for the hosted Omonire backend (V3+).
 
     The full central service client is out of scope for V1. This placeholder is
     exported so the public API surface matches the final product vision without
@@ -238,6 +236,12 @@ class G3Client:
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:  # pragma: no cover - stub
         raise NotImplementedError(
-            "G3Client is not implemented in V1. It will be introduced in V3 "
-            "(g3-backend: centralised rate limiting service)."
+            "OmonireClient is not implemented in V1. It will be introduced in V3 "
+            "(omonire-backend: centralised rate limiting service)."
         )
+
+
+#: Pre-rebrand name of :class:`OmonireClient`, kept so existing imports keep
+#: working. The class only ever raised ``NotImplementedError``, so nothing that
+#: runs today depends on which of the two names it is bound to.
+G3Client = OmonireClient

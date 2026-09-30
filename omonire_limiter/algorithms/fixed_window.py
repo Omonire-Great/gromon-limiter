@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from g3_limiter.algorithms import FixedWindow as _FixedWindow
+from omonire_limiter.algorithms import FixedWindow as _FixedWindow
 
 __all__ = ["FixedWindow"]
 

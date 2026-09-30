@@ -39,10 +39,10 @@ jobs:
       # Redis tests fall back to fakeredis, which runs the real Lua scripts
       # in-process via lupa, so the Redis code path is covered without a server.
       - name: Test
-        run: python -m pytest -q -ra --cov=g3_limiter --cov-report=term-missing
+        run: python -m pytest -q -ra --cov=omonire_limiter --cov-report=term-missing
 
       - name: Lint
-        run: python -m ruff check g3_limiter tests examples
+        run: python -m ruff check omonire_limiter tests examples
 
       - name: Types
         run: python -m mypy
@@ -76,7 +76,7 @@ jobs:
           pip install dist/*.whl
           cd "${{ runner.temp }}"
           python - <<'PY'
-          from g3_limiter import (
+          from omonire_limiter import (
               Identity,
               LimiterCore,
               MemoryStorage,
@@ -86,7 +86,7 @@ jobs:
               Rule,
               by_ip,
           )
-          from g3_limiter.config import Settings
+          from omonire_limiter.config import Settings
 
           assert RateLimit.parse("100/5 minutes").window == 300
 

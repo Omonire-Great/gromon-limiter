@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from g3_limiter import (
+from omonire_limiter import (
     AuthLimiter,
     ConfigurationError,
     Identity,

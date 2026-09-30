@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from g3_limiter.algorithms import SlidingWindow as _SlidingWindow
+from omonire_limiter.algorithms import SlidingWindow as _SlidingWindow
 
 __all__ = ["SlidingWindow"]
 

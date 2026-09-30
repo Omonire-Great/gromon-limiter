@@ -16,8 +16,8 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
-from g3_limiter.errors import ConfigurationError, StorageError
-from g3_limiter.storage.base import CounterState, Storage
+from omonire_limiter.errors import ConfigurationError, StorageError
+from omonire_limiter.storage.base import CounterState, Storage
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from redis.client import Redis
@@ -123,7 +123,7 @@ class RedisStorage(Storage):
         *,
         url: str | None = None,
         client: Redis | None = None,
-        prefix: str = "g3_limiter",
+        prefix: str = "omonire_limiter",
         clock: Callable[[], float] | None = None,
         **client_kwargs: Any,
     ) -> None:
@@ -138,7 +138,7 @@ class RedisStorage(Storage):
             except ImportError as exc:  # pragma: no cover - depends on env
                 raise ConfigurationError(
                     "the redis package is required for RedisStorage; "
-                    "install it with `pip install g3-limiter[redis]`"
+                    "install it with `pip install omonire-limiter[redis]`"
                 ) from exc
             # Extra keyword arguments (TLS, timeouts, socket options) are
             # forwarded verbatim, because a production Redis connection usually

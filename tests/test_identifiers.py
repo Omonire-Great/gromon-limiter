@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from g3_limiter.identifiers import (
+from omonire_limiter.identifiers import (
     Identity,
     TrustedProxies,
     client_ip,

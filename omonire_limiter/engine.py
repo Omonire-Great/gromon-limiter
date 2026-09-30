@@ -1,13 +1,13 @@
-"""V2 policy evaluation on top of :class:`~g3_limiter.core.LimiterCore`.
+"""V2 policy evaluation on top of :class:`~omonire_limiter.core.LimiterCore`.
 
 V1's engine knows about two rules, ``ip`` and ``account``, because that is all an
 authentication endpoint needs. V2 needs an arbitrary number of rules, each with
 its own key, limit, cost and cooldown, declared as data
-(:mod:`g3_limiter.policies`).
+(:mod:`omonire_limiter.policies`).
 
 Rather than fork the algorithm code, this module **reuses** ``LimiterCore`` as the
 counter: each V2 rule is evaluated by calling ``core.check`` with an
-:class:`~g3_limiter.identifiers.Identity` pre-seeded to match exactly the
+:class:`~omonire_limiter.identifiers.Identity` pre-seeded to match exactly the
 components that rule cares about, and a per-rule scope. The engine's
 cooldown handling, storage atomicity and header building then apply unchanged.
 
@@ -24,10 +24,10 @@ from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any
 
-from g3_limiter.core import Decision, LimiterCore
-from g3_limiter.errors import ConfigurationError, StorageError
-from g3_limiter.identifiers import Identity
-from g3_limiter.policies import Policy, Rule
+from omonire_limiter.core import Decision, LimiterCore
+from omonire_limiter.errors import ConfigurationError, StorageError
+from omonire_limiter.identifiers import Identity
+from omonire_limiter.policies import Policy, Rule
 
 __all__ = [
     "PolicyDecision",
@@ -35,7 +35,7 @@ __all__ = [
     "PolicyVerdict",
 ]
 
-logger = logging.getLogger("g3_limiter")
+logger = logging.getLogger("omonire_limiter")
 
 #: Safety valve. A policy with more rules than this is almost certainly a
 #: configuration mistake, and evaluating it literally would issue one storage
@@ -92,7 +92,7 @@ PolicyDecision = PolicyVerdict
 
 
 class PolicyEvaluator:
-    """Evaluates a :class:`~g3_limiter.policies.Policy` through the engine."""
+    """Evaluates a :class:`~omonire_limiter.policies.Policy` through the engine."""
 
     __slots__ = ("_core", "_rule_cores")
 
@@ -228,7 +228,7 @@ class PolicyEvaluator:
                     # counted.
                     storage_failed = True
                     logger.warning(
-                        "g3_limiter: storage unavailable, allowing request under "
+                        "omonire_limiter: storage unavailable, allowing request under "
                         "policy %r (fail-open)",
                         policy.name,
                     )
