@@ -25,8 +25,9 @@ from typing import Any, TypeVar
 
 from omonire_limiter.errors import ConfigurationError, RateLimitExceeded
 from omonire_limiter.limits import RateLimit
+from omonire_limiter.policies import Policy
 
-__all__ = ["limit", "view_algorithm", "view_limit"]
+__all__ = ["limit", "view_algorithm", "view_limit", "view_policy"]
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -38,6 +39,7 @@ def limit(
     algorithm: str | None = None,
     scope_path: str | Callable[..., str] | None = None,
     raise_on_limit: bool = False,
+    policy: Policy | None = None,
 ) -> Callable[[F], F]:
     """Limit requests to a view.
 
@@ -58,10 +60,19 @@ def limit(
         Raise :class:`~omonire_limiter.RateLimitExceeded` instead of returning a
         429 response, so a project can centralise error handling in one
         ``@app.errorhandler``.
+    policy:
+        A V2 :class:`~omonire_limiter.Policy` governing this route. When given it
+        takes precedence over ``limit_spec`` and ``algorithm``: a policy declares
+        its own per-rule limits, and layering the V1 limit on top would enforce
+        something the policy never said.
     """
     if limit_spec is not None and not isinstance(limit_spec, RateLimit):
         # Fail at import/definition time, not on the first request.
         RateLimit.parse(limit_spec)
+    if policy is not None and not isinstance(policy, Policy):
+        raise ConfigurationError(
+            f"policy= expects a Policy, got {type(policy).__name__}"
+        )
 
     def decorator(view: F) -> F:
         @wraps(view)
@@ -83,6 +94,7 @@ def limit(
                 limit=limit_spec,
                 algorithm=algorithm,
                 path=path,
+                policy=policy,
             )
 
             if not decision.allowed:
@@ -96,6 +108,7 @@ def limit(
         # view without having to re-parse the decorator.
         setattr(wrapper, _ROUTE_LIMIT_ATTR, limit_spec)
         setattr(wrapper, _ROUTE_ALGORITHM_ATTR, algorithm)
+        setattr(wrapper, _ROUTE_POLICY_ATTR, policy)
         return wrapper  # type: ignore[return-value]
 
     return decorator
@@ -104,6 +117,7 @@ def limit(
 #: Attributes used to introspect a view's configuration.
 _ROUTE_LIMIT_ATTR = "_omonire_limiter_limit"
 _ROUTE_ALGORITHM_ATTR = "_omonire_limiter_algorithm"
+_ROUTE_POLICY_ATTR = "_omonire_limiter_policy"
 
 
 def view_limit(view: Any) -> str | RateLimit | None:
@@ -114,3 +128,18 @@ def view_limit(view: Any) -> str | RateLimit | None:
 def view_algorithm(view: Any) -> str | None:
     """Return the per-route algorithm override, if one was set."""
     return getattr(view, _ROUTE_ALGORITHM_ATTR, None)
+
+
+def view_policy(view: Any) -> Policy | None:
+    """Return the policy set explicitly on this view, or ``None``.
+
+    ``None`` means the route was decorated without ``policy=``, so it inherits
+    whatever the limiter's default is. To resolve the policy that would actually
+    govern the request, combine the two::
+
+        limiter.policy_for(view_policy(view))
+
+    Note that ``@app.route`` returns the wrapped view, so read this off the name
+    bound below ``@app.route``, not off the undecorated function.
+    """
+    return getattr(view, _ROUTE_POLICY_ATTR, None)

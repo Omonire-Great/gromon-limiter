@@ -21,8 +21,11 @@ policy = Policy(
     ),
 )
 
-limiter = Limiter.for_policy(policy, key_salt=os.environ["OMONIRE_LIMITER_SECRET"])
+limiter = Limiter.for_policy(policy, app, key_salt=os.environ["OMONIRE_LIMITER_SECRET"])
 ```
+
+See [Binding a policy to Flask](#binding-a-policy-to-flask) for the full wiring
+including the `extras_provider` that `by_user()` needs.
 
 A request is allowed only when **every** rule allows it. That is what makes V1's
 "IP rule and account rule, both enforced" a property of the model rather than a
@@ -64,10 +67,99 @@ The composite form is "this tenant's this user". The independent form produces
 two counters, so breaching either dimension blocks the request. Use it for
 fairness: a noisy tenant cannot spend another tenant's allowance.
 
-## Evaluating a policy
+## Binding a policy to Flask
 
-`PolicyEvaluator` is the entry point. It holds one `LimiterCore` and derives a
-narrow engine view per rule.
+`Limiter.for_policy` takes the app positionally, exactly like `AuthLimiter(app)`,
+and configures the limiter in one call:
+
+```python
+from flask import Flask, request, session
+from omonire_limiter import Limiter, Policy, Rule, by_ip, by_user
+
+app = Flask(__name__)
+
+policy = Policy(
+    name="api",
+    rules=(
+        Rule(key=by_ip(), limit="20/minute", name="ip"),
+        Rule(key=by_user(), limit="200/minute", name="user"),
+    ),
+)
+
+def extras() -> dict[str, str]:
+    """Authenticated material for this request. Runs inside the request cycle."""
+    return {"user": session["user_id"]} if "user_id" in session else {}
+
+limiter = Limiter.for_policy(
+    policy,
+    app,
+    key_salt=os.environ["OMONIRE_LIMITER_SECRET"],
+    extras_provider=extras,   # this is what makes by_user() enforceable
+)
+
+@app.post("/api")
+@limiter.limit()
+def api():
+    return {"ok": True}
+```
+
+`@limiter.limit()` with no arguments uses the limiter's default policy. Pass
+`policy=` to give one route its own, which takes precedence over both
+`limit_spec` and `algorithm` — a policy declares its own per-rule limits, so
+layering a V1 limit on top would enforce something the policy never said:
+
+```python
+@app.post("/api/export")
+@limiter.limit(policy=strict_export_policy)
+def export():
+    ...
+```
+
+A route can also override the app-wide default without touching the limiter:
+
+```python
+@app.post("/health")
+@limiter.limit(raise_on_limit=True)   # V1 limit, central error handler
+def health():
+    ...
+```
+
+### `extras_provider`
+
+`by_user()`, `by_tenant()` and `by_api_key()` need material that is not on the
+request itself. `extras_provider` is a callable invoked inside the request
+context; it may return a `dict` or an `Identity`.
+
+**A rule whose material is absent is skipped, not enforced against a shared
+bucket.** Without this, every anonymous caller would land in one "user"
+bucket and the first request would lock out the rest. The `by_ip()` rule above
+still applies to those callers, which is the intended pre-auth behaviour.
+
+If the provider raises, the rules that need it are skipped and the rest of the
+policy still runs; the error is logged rather than turned into a 500. A rule
+cannot fail *closed* by accident here, which is deliberate: the fallback is
+"stop counting those callers", not "throw on every request".
+
+### Other behaviour worth knowing
+
+- `limiter.reset(identity, path=..., method=...)` clears policy counters through
+  the evaluator. Use it after a successful login so a user's own earlier failed
+  attempts do not carry over. `path` and `method` must match the request that was
+  charged, since the scope is part of the storage key.
+- `decorator.view_policy(view)` returns the policy set explicitly on a route, or
+  `None` when the route inherits the limiter's default. Resolve the policy that
+  would actually govern a request with `limiter.policy_for(view_policy(view))`.
+- The 429 body names the policy rule that blocked (`"rule": "user"`), not the
+  engine's synthetic identifier.
+- `fail_closed` is per policy, and the policy wins over `Settings.fail_open`.
+  A storage outage therefore blocks a fail-closed policy and allows a fail-open
+  one, and `X-RateLimit-*`/`current_decision().storage_failed` still tell you
+  which happened.
+
+## Evaluating a policy directly
+
+Outside Flask, `PolicyEvaluator` is the entry point. It holds one `LimiterCore`
+and derives a narrow engine view per rule.
 
 ```python
 from omonire_limiter.engine import PolicyEvaluator

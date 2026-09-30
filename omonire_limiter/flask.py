@@ -18,7 +18,8 @@ the raw WSGI stream here would leave the view with an empty form.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import replace
 from typing import Any
 
 from omonire_limiter.config import (
@@ -29,9 +30,11 @@ from omonire_limiter.config import (
     resolve_key_salt,
 )
 from omonire_limiter.core import Decision, LimiterCore, build_body, build_headers
+from omonire_limiter.engine import PolicyEvaluator
 from omonire_limiter.errors import ConfigurationError, RateLimitExceeded, StorageError
 from omonire_limiter.identifiers import Identity, client_ip, normalize_account
 from omonire_limiter.limits import RateLimit
+from omonire_limiter.policies import Policy
 from omonire_limiter.storage import build_storage
 from omonire_limiter.storage.base import Storage
 
@@ -44,6 +47,7 @@ except ImportError as exc:  # pragma: no cover - depends on environment
     ) from exc
 
 __all__ = [
+    "ExtrasProvider",
     "build_identity",
     "current_limiter",
     "init_auth_limiter",
@@ -60,6 +64,13 @@ _DECISION_ATTR = "_omonire_limiter_decision"
 
 #: Where the decorator stashes the Flask config on first use, for introspection.
 _ROUTE_ATTR = "_omonire_limiter_limit"
+
+#: Supplies authenticated identity material (user, tenant, api_key) for V2 rules.
+#: Called once per request, inside the request context, so it can read the
+#: session or a verified token. Returning ``None`` means "nothing extra", and a
+#: rule keyed on material that is absent is skipped rather than counted against a
+#: shared bucket.
+ExtrasProvider = Callable[[], "Identity | Mapping[str, str] | None"]
 
 
 def _limiter_from(app: Any) -> Any:
@@ -142,6 +153,82 @@ def _make_identity(limiter: Any) -> Identity:
     )
 
 
+def _extras_for(limiter: Any) -> Identity | None:
+    """Resolve authenticated material for V2 rules keyed on user/tenant/api_key.
+
+    A provider that raises must not turn into a 500 on every request, so the
+    failure is logged and treated as "no extras". A rule that needed the material
+    is then *skipped* by the evaluator rather than counted against a shared
+    bucket, which is the safe direction: the rule stops applying instead of every
+    anonymous caller landing in one bucket an attacker could exhaust.
+    """
+    provider: ExtrasProvider | None = getattr(limiter, "extras_provider", None)
+    if provider is None:
+        return None
+    try:
+        supplied = provider()
+    except Exception:
+        # A provider that raises must not turn into a 500 on every request.
+        logger.exception(
+            "omonire_limiter: extras provider raised; rules keyed on it are skipped "
+            "(namespace=%s)",
+            getattr(limiter.settings, "namespace", "?"),
+        )
+        return None
+    if supplied is None:
+        return None
+    if isinstance(supplied, Identity):
+        return supplied
+    return Identity(extras=dict(supplied))
+
+
+def evaluator_for(limiter: Any) -> PolicyEvaluator:
+    """Return the limiter's policy evaluator, building it once.
+
+    The evaluator caches one engine view per (policy, rule), so constructing a new
+    one per request would throw that cache away and rebuild settings on the hot
+    path. Public because :meth:`Limiter.reset` needs it outside a request cycle.
+    """
+    existing: PolicyEvaluator | None = getattr(limiter, "_evaluator", None)
+    if existing is None:
+        existing = PolicyEvaluator(limiter.core)
+        limiter._evaluator = existing
+    return existing
+
+
+def _policy_decision(
+    limiter: Any,
+    policy: Policy,
+    identity: Identity,
+    *,
+    path: str,
+    method: str,
+) -> Decision:
+    """Evaluate a V2 policy and reduce the verdict to a single ``Decision``.
+
+    The verdict is collapsed here so the rest of the Flask layer — the 429
+    renderer, the header publisher, ``raise_on_limit`` — keeps working unchanged
+    whether a V1 limit or a V2 policy produced the decision.
+    """
+    verdict = evaluator_for(limiter).check(
+        policy,
+        identity,
+        path=path,
+        method=method,
+        extras=_extras_for(limiter),
+    )
+    decision = verdict.decision
+    if not verdict.allowed:
+        return decision
+    # The verdict may have absorbed a storage error under a fail-open policy, in
+    # which case `decision.allowed` is "allowed because we could not tell". That
+    # has to reach the caller, so the flag is carried on the decision the rest of
+    # the layer can see.
+    if verdict.storage_failed and not decision.storage_failed:
+        decision = replace(decision, storage_failed=True)
+    return decision
+
+
 def _blocked_response(decision: Decision, status_code: int, *, include_info: bool) -> Any:
     """Render a blocking decision as a Flask JSON response.
 
@@ -201,6 +288,8 @@ def init_auth_limiter(
     headers: bool = True,
     status_code: int = 429,
     clock: Callable[[], float] | None = None,
+    policy: Policy | None = None,
+    extras_provider: ExtrasProvider | None = None,
 ) -> Any:
     """Build the engine and attach it to ``app``.
 
@@ -246,6 +335,13 @@ def init_auth_limiter(
     limiter._settings = settings
     limiter._storage = backend
     limiter._app = app
+    # Set unconditionally so the attribute always exists: a V1 limiter must read
+    # as "no provider" rather than raising AttributeError deep in a request.
+    limiter.extras_provider = extras_provider
+    if policy is not None:
+        # A policy supplied here becomes the limiter's default, so
+        # `Limiter.for_policy(p, app=app)` and `init_app(app, policy=p)` agree.
+        limiter.default_policy = policy
 
     app.extensions[EXTENSION_KEY] = limiter
 
@@ -277,12 +373,19 @@ def evaluate(
     algorithm: str | None = None,
     path: str | None = None,
     method: str | None = None,
+    policy: Policy | None = None,
 ) -> Decision:
     """Run one check and record the decision on ``flask.g``.
 
     The recorded decision is what ``_publish_headers`` turns into response
     headers, and what the decorator uses to decide between returning normally
     and returning 429.
+
+    A V2 ``policy`` on the route (or the limiter's default) is evaluated through
+    :class:`~omonire_limiter.engine.PolicyEvaluator` and takes precedence over the
+    V1 ``limit``/``algorithm`` arguments. The two models are alternatives, not a
+    merge: a policy owns its own per-rule limits, so quietly applying ``limit`` on
+    top of it would enforce something the policy never declared.
     """
     settings: Settings = limiter.settings
     if not settings.enabled:
@@ -296,16 +399,23 @@ def evaluate(
         setattr(g, _DECISION_ATTR, decision)
         return decision
 
+    effective_policy = _policy_for(limiter, policy)
     identity = _make_identity(limiter)
+    resolved_path = path if path is not None else request.path
     try:
-        decision = limiter.core.check(
-            identity,
-            path=path if path is not None else request.path,
-            method=method_u,
-            limit=limit,
-            algorithm=algorithm,
-            enforce=False,
-        )
+        if effective_policy is not None:
+            decision = _policy_decision(
+                limiter, effective_policy, identity, path=resolved_path, method=method_u
+            )
+        else:
+            decision = limiter.core.check(
+                identity,
+                path=resolved_path,
+                method=method_u,
+                limit=limit,
+                algorithm=algorithm,
+                enforce=False,
+            )
     except StorageError:
         if not settings.fail_open:
             logger.exception(
@@ -330,6 +440,20 @@ def evaluate(
 
     setattr(g, _DECISION_ATTR, decision)
     return decision
+
+
+def _policy_for(limiter: Any, override: Policy | None) -> Policy | None:
+    """Return the policy that applies to this request, or ``None`` for the V1 path.
+
+    ``policy_for`` is looked up dynamically because it only exists on ``Limiter``
+    (V2); a V1 ``AuthLimiter`` must fall through to the engine untouched.
+    """
+    resolver: Callable[[Policy | None], Policy | None] | None = getattr(
+        limiter, "policy_for", None
+    )
+    if resolver is None:
+        return None
+    return resolver(override)
 
 
 def current_decision() -> Decision | None:

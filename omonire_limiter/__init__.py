@@ -112,6 +112,12 @@ class AuthLimiter:
     #: the attribute exists on every instance and ``policy_for`` never raises
     #: AttributeError on a V1 object.
     default_policy: Policy | None = None
+    #: Supplies authenticated material (user, tenant, api_key) for V2 rules. Set
+    #: by ``init_auth_limiter``; ``None`` on a V1 limiter means no rule needs it.
+    extras_provider: Any = None
+    #: Cached policy evaluator, built on first use by the Flask layer. The cache
+    #: holds one engine view per (policy, rule), so it must outlive a request.
+    _evaluator: PolicyEvaluator | None = None
 
     def __init__(self, app: Flask | None = None, **kwargs: Any) -> None:
         # Keyword arguments are held so that the deferred form
@@ -175,9 +181,13 @@ class AuthLimiter:
         """Evaluate a limit outside a request cycle (see ``LimiterCore.check``)."""
         return self.core.check(**kwargs)
 
-    def reset(self, **kwargs: Any) -> int:
-        """Drop stored counters for a caller, e.g. after a successful login."""
-        return self.core.reset(**kwargs)
+    def reset(self, identity: Identity, **kwargs: Any) -> int:
+        """Drop stored counters for a caller, e.g. after a successful login.
+
+        ``identity`` is positional-or-keyword, matching
+        :meth:`LimiterCore.reset`, so ``reset(identity=...)`` also works.
+        """
+        return self.core.reset(identity, **kwargs)
 
     def clear_all(self) -> int:
         """Remove every counter this limiter owns. Mainly for tests and tooling."""
@@ -201,17 +211,23 @@ class Limiter(AuthLimiter):
     """
 
     @classmethod
-    def for_policy(cls, policy: Policy, **kwargs: Any) -> Limiter:
+    def for_policy(cls, policy: Policy, app: Flask | None = None, **kwargs: Any) -> Limiter:
         """Build a limiter whose routes share one policy.
 
         The small factory exists so the policy is validated once, at start-up,
         rather than on the first request that reaches a decorated route.
+
+        ``app`` may be passed positionally, matching ``AuthLimiter(app, ...)``, so
+        the whole limiter is configured in one call.
         """
         if not isinstance(policy, Policy):
             raise ConfigurationError(
                 f"for_policy expects a Policy, got {type(policy).__name__}"
             )
-        limiter = cls(**kwargs)
+        # The policy travels as a kwarg rather than being assigned afterwards, so
+        # that `for_policy(p, app)` and `for_policy(p, app=app)` build the same
+        # object and the Flask layer sees the policy during init_app.
+        limiter = cls(app, policy=policy, **kwargs)
         limiter.default_policy = policy
         return limiter
 
@@ -221,6 +237,32 @@ class Limiter(AuthLimiter):
         if chosen is None or chosen.is_empty():
             return None
         return chosen
+
+    def reset(
+        self,
+        identity: Identity,
+        *,
+        policy: Policy | None = None,
+        **kwargs: Any,
+    ) -> int:
+        """Drop stored counters for a caller, e.g. after a successful login.
+
+        Takes the same ``identity``/``path``/``method`` arguments as
+        :meth:`LimiterCore.reset`, so an existing V1 call site needs no change.
+
+        When a policy applies the counters are cleared through
+        :meth:`PolicyEvaluator.reset`, because those live under per-rule keys the
+        V1 engine does not know about. Clearing the V1 core instead would report
+        success while removing nothing, and the caller would stay blocked by their
+        own earlier failed attempts. ``policy`` is keyword-only so it cannot
+        collide with the positional ``identity``.
+        """
+        chosen = self.policy_for(policy)
+        if chosen is None:
+            return super().reset(identity, **kwargs)
+        from omonire_limiter.flask import evaluator_for
+
+        return evaluator_for(self).reset(chosen, identity, **kwargs)
 
 
 # ---------------------------------------------------------------- V3/V5 stub

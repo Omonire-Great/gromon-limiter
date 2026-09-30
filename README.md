@@ -81,8 +81,10 @@ pip install omonire-limiter[redis]     # Redis storage
 From a clone, `pip install -e ".[dev]"` gives you the editable install plus the
 test and lint tooling.
 
-`omonire-limiter` is not on PyPI yet; the commands above are what will work once
-the first release under this name is published. Until then, install from a clone.
+`omonire-limiter` is not on PyPI yet, so the commands above will work once the
+first release under this name is published. Until then, install from a clone. The
+pre-rebrand `g3-limiter` 0.1.0 on PyPI is a different distribution name and will
+not pick up this release.
 
 Set a stable key salt whenever more than one process (or more than one restart)
 matters. Without it, memory storage generates a random one and warns; Redis

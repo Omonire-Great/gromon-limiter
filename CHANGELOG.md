@@ -28,6 +28,13 @@ release adds V2 and the rebrand.
   A refused attempt inside a cooldown does not extend the wait.
 - `KeyBuilder.materials_or_none()`, used by the evaluator to skip a rule whose
   components are absent rather than raising on an unauthenticated request.
+- Flask binding for V2. `Limiter.for_policy(policy, app, ...)` configures a
+  limiter in one call, `@limiter.limit(policy=...)` applies a policy to a single
+  route, and `extras_provider=` supplies authenticated material (`user`, `tenant`,
+  `api_key`) per request so `by_user()` and friends are enforced instead of
+  skipped. A rule whose material is absent is skipped, so an anonymous caller is
+  not pooled into a shared user bucket. `decorator.view_policy()` reads a route's
+  policy back off the view.
 - `LimiterCore.clock`, so a derived engine evaluates on the same time source as
   the one it was derived from.
 - `Decision.storage_failed`, so a fail-open decision is self-describing.
@@ -51,7 +58,7 @@ release adds V2 and the rebrand.
 - Four names that are *stored or configured* rather than cosmetic also moved, so
   an upgrade is not invisible:
   - The key-salt environment variable is now `OMONIRE_LIMITER_SECRET` (was
-    `OMONIRE_LIMITER_KEY_SALT`). Redis-backed deployments **fail to start** until
+    `G3_LIMITER_KEY_SALT`). Redis-backed deployments **fail to start** until
     the secret is renamed. There is no fallback to the previous name.
   - The Redis key prefix is now `omonire_limiter:`, so every live counter is
     orphaned. Pass `prefix="g3_limiter"` to `RedisStorage`/`build_storage` to
@@ -63,10 +70,25 @@ release adds V2 and the rebrand.
   - The Flask `app.extensions` key is now `omonire_limiter` (`EXTENSION_KEY`).
 - `G3Client` is now `OmonireClient`; the old name remains as an alias.
 - `0.1.0` was published to PyPI as `g3-limiter`. `omonire-limiter` has not been
-  published yet.
+  published yet; 1.0.0 is the first release under the new name.
 - A `Rule` with a static `cost` below 1 is now rejected at construction. A zero
   cost made the rule unenforceable while still looking configured.
 - The README no longer says the package is unpublished; 0.1.0 is on PyPI.
+
+### Fixed
+
+- A `Policy` attached to a Flask limiter was accepted, reported by
+  `Limiter.policy_for()`, and then ignored: every request took the V1 path and was
+  limited by `default_limit`. The policy model was fully implemented and fully
+  tested at the `PolicyEvaluator` level while nothing in the Flask layer called it,
+  so a configured policy silently enforced the wrong number. The Flask layer now
+  routes policy-bound requests through `PolicyEvaluator`.
+- `Limiter.for_policy(policy, app)` raised `TypeError`; the parameter had to be
+  passed by keyword even though `AuthLimiter(app)` takes it positionally. `app` is
+  now accepted positionally.
+- `Limiter.reset()` only cleared V1 counters, so resetting a caller on a
+  policy-backed limiter reported success while removing nothing and the caller
+  stayed blocked. It now routes through `PolicyEvaluator.reset`.
 
 ### Removed
 

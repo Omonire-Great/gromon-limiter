@@ -38,8 +38,10 @@ dashboards, hosted API.
 | Per-route and per-blueprint policies declared as data | done (`Policy` / `Rule` data model) |
 | Weighted limits (cost per request) | done (`Rule.cost`, `fixed_cost`; atomic in both backends) |
 | Policy evaluation over the V1 engine | done (`PolicyEvaluator`, `PolicyVerdict`) |
+| Flask enforcement of a bound policy | done (`for_policy`, `@limiter.limit(policy=)`, `extras_provider`) |
 | Per-rule cooldowns and fail-open/fail-closed per policy | done |
 | Global (`scope="global"`) limits | partial (scope already in V1 config, no V2 sugar) |
+| Blueprint-level policy defaults | partial (per-route via `policy=`; no `app.blueprint` hook) |
 | `Retry-After`-aware client helpers | next |
 | Django and FastAPI adapters on the existing engine | next |
 | Response hooks (custom status, body, headers) | next |

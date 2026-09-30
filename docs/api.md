@@ -44,8 +44,57 @@ both forms are equivalent. The full keyword list is in
 | `storage` | `Storage` | |
 | `limit(spec=None, **options)` | decorator | `@limiter.limit("5/minute")` |
 | `check(**kwargs)` | `Decision` | Delegates to `LimiterCore.check` |
-| `reset(**kwargs)` | `int` | Clears one identity's counters and cooldowns |
+| `reset(identity, **kwargs)` | `int` | Clears one identity's counters and cooldowns |
 | `clear_all()` | `int` | Clears this namespace (tests, admin tooling) |
+| `extras_provider` | `Callable \| None` | `None` on a V1 limiter; set by `extras_provider=` |
+| `default_policy` | `Policy \| None` | `None` on a V1 limiter |
+
+---
+
+## `Limiter` (V2)
+
+`Limiter` subclasses `AuthLimiter`, so every row above applies. It adds the
+policy surface.
+
+```python
+Limiter.for_policy(policy, app=None, **settings) -> Limiter
+Limiter(app, policy=policy, **settings)            # equivalent
+```
+
+`app` is positional, matching `AuthLimiter(app)`. Raises `ConfigurationError` if
+`policy` is not a `Policy`, so a bad policy fails at start-up rather than on the
+first request.
+
+| Member | Returns | Notes |
+| --- | --- | --- |
+| `default_policy` | `Policy \| None` | Fallback for routes with no explicit `policy=` |
+| `policy_for(override=None)` | `Policy \| None` | `override` if given, else the default; `None` means "use the V1 path" |
+| `reset(identity, *, policy=None, **kwargs)` | `int` | Routes through `PolicyEvaluator.reset` when a policy applies |
+
+### `for_policy` and the Flask decorator
+
+```python
+limiter = Limiter.for_policy(policy, app, extras_provider=extras)
+
+@app.post("/api")
+@limiter.limit()                     # uses limiter.default_policy
+
+@app.post("/api/export")
+@limiter.limit(policy=strict)        # route-specific, wins over default
+```
+
+| Setting | Meaning |
+| --- | --- |
+| `policy=` on `for_policy` / `AuthLimiter` | Sets `default_policy` at init |
+| `extras_provider=` | Called inside the request cycle; returns `dict` or `Identity` supplying `user` / `tenant` / `api_key` for `by_user()` and friends. A rule whose material is absent is **skipped**, never pooled into a shared bucket |
+
+### Decorator introspection
+
+| Function | Returns | Notes |
+| --- | --- | --- |
+| `view_limit(view)` | `str \| RateLimit \| None` | |
+| `view_algorithm(view)` | `str \| None` | |
+| `view_policy(view)` | `Policy \| None` | `None` when the route inherits `default_policy`; combine with `limiter.policy_for(...)` for the effective policy |
 
 ---
 
@@ -228,14 +277,19 @@ closes a client it created on exit.
     algorithm=None,           # per-route algorithm override
     scope_path=None,          # str or callable, overrides the scope
     raise_on_limit=False,     # raise RateLimitExceeded instead of returning 429
+    policy=None,              # Policy for this route; wins over limit_spec/algorithm
 )
 ```
 
-`@app.route` must be **above** `@limiter.limit`. A malformed `limit_spec` raises
-at decoration time, not on the first request.
+`@app.route` must be **above** `@limiter.limit`. A malformed `limit_spec` or a
+non-`Policy` `policy` raises at decoration time, not on the first request.
 
-Introspection helpers: `view_limit(view)` and `view_algorithm(view)` from
-`omonire_limiter.decorators`.
+With `policy=` set, the route is enforced by `PolicyEvaluator` and `limit_spec`
+and `algorithm` are ignored: a policy declares its own per-rule limits, so
+layering a V1 limit on top would enforce something the policy never said.
+
+Introspection helpers: `view_limit(view)`, `view_algorithm(view)` and
+`view_policy(view)` from `omonire_limiter.decorators`.
 
 ---
 
@@ -248,6 +302,7 @@ Introspection helpers: `view_limit(view)` and `view_algorithm(view)` from
 | `resolve_limiter(app)` | the limiter registered on an app, or `ConfigurationError` |
 | `build_identity(account_fields, *, trusted_proxies=None, headers=None)` | build an `Identity` from the current request |
 | `current_decision()` | the `Decision` recorded for this request, if any |
+| `evaluator_for(limiter)` | the limiter's cached `PolicyEvaluator` |
 | `EXTENSION_KEY` | `"omonire_limiter"`, the `app.extensions` key |
 
 ---
