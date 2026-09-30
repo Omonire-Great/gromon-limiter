@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `gromon_limiter.__version__`, read from the installed distribution's metadata
+  so it cannot drift from the released version. A source checkout with nothing
+  installed falls back to a literal, and `test_public_api.py` asserts the two
+  agree with `pyproject.toml`.
+
+### Changed
+
+- The `Development Status` classifier is now `5 - Production/Stable`, which is
+  what the 1.0.0 version has claimed since it was released. Packagers gate on
+  the classifier, so the old `4 - Beta` told downstream users something untrue.
+
+### Fixed
+
+- `AuthLimiter` and `Limiter` raise `ConfigurationError` when handed a `Policy`
+  in the `app` slot, naming `LimiterCore` as the framework-free alternative.
+  `Limiter(Policy(...))` previously failed with an `ImportError` about Flask
+  from inside the integration module, which pointed at installing a dependency
+  the caller never wanted.
+
 ## [1.0.0] - 2026-09-30
 
 First release under the Gromon Limiter name, and the first release of this

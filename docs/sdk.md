@@ -218,6 +218,8 @@ control plane.
 
 ## Versioning
 
-`0.1.x` corresponds to V1. Public names in `gromon_limiter.__all__` are stable
-within a milestone. Settings are keyword-only and additive: new options appear
-with defaults that preserve current behaviour.
+`1.0.x` is the current line; `0.1.x` was V1 under the retired `g3-limiter`
+name. Public names in `gromon_limiter.__all__` are stable within a milestone, and
+the installed version is readable as `gromon_limiter.__version__`. Settings are
+keyword-only and additive: new options appear with defaults that preserve current
+behaviour.

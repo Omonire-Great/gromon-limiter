@@ -9,6 +9,8 @@ stable within its milestone.
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _installed_version
 from typing import TYPE_CHECKING, Any
 
 from gromon_limiter.core import (
@@ -90,8 +92,42 @@ __all__ = [
     "fixed_cost",
 ]
 
+#: Mirror of the version in ``pyproject.toml``, for the case where the package is
+#: imported from a source checkout that was never installed. The installed
+#: distribution is the authority, so the value is read from its metadata rather
+#: than hardcoded, and only an uninstalled tree falls back to this literal.
+#: ``test_public_api.py`` asserts both agree, so the two cannot drift apart.
+_FALLBACK_VERSION = "1.0.0"
+
+try:
+    __version__ = _installed_version("gromon-limiter")
+except PackageNotFoundError:  # pragma: no cover - only an uninstalled checkout
+    __version__ = _FALLBACK_VERSION
+
 
 # ---------------------------------------------------------------- V1 entry points
+
+
+_POLICY_AS_APP = (
+    "{cls} takes a Flask app as its first argument, not a Policy. For a limiter "
+    "that does not need a web framework, build the engine directly: "
+    "LimiterCore(Settings(...), MemoryStorage()) and call "
+    "core.check(Identity(...))."
+)
+
+
+def _reject_policy_as_app(app: object, cls: type) -> None:
+    """Fail loudly when a :class:`Policy` lands in the ``app`` slot.
+
+    ``Limiter(Policy(...))`` is the shape most callers reach for first, and it
+    fails confusingly: the policy is accepted as the app and the error that
+    eventually surfaces is an ``ImportError`` about Flask not being installed,
+    which sends the reader off to install an extra they do not need. One
+    ``ConfigurationError`` naming the engine they actually wanted is a better
+    answer than a traceback three frames deep.
+    """
+    if isinstance(app, Policy):
+        raise ConfigurationError(_POLICY_AS_APP.format(cls=cls.__name__))
 
 
 class AuthLimiter:
@@ -120,6 +156,7 @@ class AuthLimiter:
     _evaluator: PolicyEvaluator | None = None
 
     def __init__(self, app: Flask | None = None, **kwargs: Any) -> None:
+        _reject_policy_as_app(app, type(self))
         # Keyword arguments are held so that the deferred form
         # ``AuthLimiter(limit=...).init_app(app)`` behaves exactly like
         # ``AuthLimiter(app, limit=...)``.
@@ -139,6 +176,7 @@ class AuthLimiter:
         """
         from gromon_limiter.flask import init_auth_limiter
 
+        _reject_policy_as_app(app, type(self))
         if app is None:
             self._kwargs.update(kwargs)
             return self
